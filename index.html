@@ -445,10 +445,10 @@ function translateError(status, e){
   const map = {
     invalid_bank_account_iban: 'Die IBAN ist ungültig.',
     email_invalid: 'Die E-Mail-Adresse ist ungültig.',
-    payment_method_not_available: 'SEPA-Lastschrift ist für dieses Stripe-Konto nicht aktiviert. Im Dashboard unter Einstellungen → Zahlungsmethoden aktivieren.',
+    payment_method_not_available: 'SEPA-Lastschrift ist in diesem Stripe-Konto nicht eingeschaltet. Im Stripe Dashboard unter Einstellungen → Zahlungsmethoden bei "SEPA-Lastschrift" einschalten (Test- und Livemodus werden getrennt eingestellt). Danach hier einfach nochmal absenden.',
   };
   if (e?.code && map[e.code]) return map[e.code];
-  if (/sepa_debit/i.test(e?.message || '') && /(activ|enabl|configur|not available|invalid)/i.test(e.message)){
+  if (/sepa_debit|payment_method_types/i.test(e?.message || '') && /(activ|enabl|configur|not available|invalid)/i.test(e.message)){
     return map.payment_method_not_available + ' Stripe meldet: ' + e.message;
   }
   return e?.message || ('Stripe-Fehler ' + status);
