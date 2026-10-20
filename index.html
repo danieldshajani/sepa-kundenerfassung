@@ -448,6 +448,9 @@ function translateError(status, e){
     payment_method_not_available: 'SEPA-Lastschrift ist für dieses Stripe-Konto nicht aktiviert. Im Dashboard unter Einstellungen → Zahlungsmethoden aktivieren.',
   };
   if (e?.code && map[e.code]) return map[e.code];
+  if (/sepa_debit/i.test(e?.message || '') && /(activ|enabl|configur|not available|invalid)/i.test(e.message)){
+    return map.payment_method_not_available + ' Stripe meldet: ' + e.message;
+  }
   return e?.message || ('Stripe-Fehler ' + status);
 }
 
@@ -512,7 +515,9 @@ async function attachSepa(customerId, {holder, email, iban, signedDate, address,
     customer: customerId,
     confirm: true,
     usage: 'off_session',
-    payment_method_types: ['sepa_debit'],
+    // Welche Zahlungsarten erlaubt sind, steuert Stripe über die Dashboard-Einstellungen.
+    // Ohne Weiterleitung, weil das Mandat schon auf Papier vorliegt.
+    automatic_payment_methods: {enabled: true, allow_redirects: 'never'},
     payment_method_data: {
       type: 'sepa_debit',
       sepa_debit: {iban},
