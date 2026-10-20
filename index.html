@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://api.stripe.com; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<title>SEPA Kundenerfassung</title>
+<style>
+:root{
+  --bg:#f5f6f8; --surface:#fff; --surface-2:#f0f2f5; --text:#1a1f29; --muted:#5d6675;
+  --border:#dde1e7; --accent:#5b4dd6; --accent-text:#fff; --accent-soft:#ecebfb;
+  --ok:#137a43; --ok-soft:#e3f5ea; --err:#b42318; --err-soft:#fdecea; --warn:#8a5a00; --warn-soft:#fff4dc;
+  --radius:10px; --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11141a; --surface:#1a1e26; --surface-2:#222733; --text:#e8eaef; --muted:#9aa3b2;
+    --border:#2e3442; --accent:#8b80f0; --accent-text:#11141a; --accent-soft:#2a2750;
+    --ok:#5fd394; --ok-soft:#173326; --err:#ff8a7e; --err-soft:#3a1c1a; --warn:#ffc65c; --warn-soft:#3a2f14;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11141a; --surface:#1a1e26; --surface-2:#222733; --text:#e8eaef; --muted:#9aa3b2;
+  --border:#2e3442; --accent:#8b80f0; --accent-text:#11141a; --accent-soft:#2a2750;
+  --ok:#5fd394; --ok-soft:#173326; --err:#ff8a7e; --err-soft:#3a1c1a; --warn:#ffc65c; --warn-soft:#3a2f14;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:880px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:22px;margin:0}
+h2{font-size:17px;margin:0 0 4px}
+h3{font-size:14px;margin:20px 0 10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+p{margin:0 0 12px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.stack>*+*{margin-top:16px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.acct{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.badge{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--surface-2);color:var(--muted)}
+.badge.test{background:var(--warn-soft);color:var(--warn)}
+.badge.live{background:var(--ok-soft);color:var(--ok)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 14px;font:inherit;color:var(--muted);cursor:pointer;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--text);border-color:var(--accent);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.grid .full{grid-column:1/-1}
+@media (max-width:640px){.grid{grid-template-columns:1fr}}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+label .req{color:var(--err)}
+input,select{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+input.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.03em}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.hint.bad{color:var(--err)} .hint.good{color:var(--ok)}
+.check{display:flex;align-items:flex-start;gap:8px;font-weight:400;font-size:14px}
+.check input{width:auto;margin-top:3px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.55;cursor:default}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.alert{padding:12px 14px;border-radius:8px;font-size:14px}
+.alert.err{background:var(--err-soft);color:var(--err)}
+.alert.ok{background:var(--ok-soft);color:var(--ok)}
+.alert.warn{background:var(--warn-soft);color:var(--warn)}
+.hidden{display:none!important}
+dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:12px 0 0;font-size:14px}
+dl.kv dt{color:var(--muted)}
+dl.kv dd{margin:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;word-break:break-all}
+code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px;background:var(--surface-2);padding:1px 6px;border-radius:5px}
+.copy{border:0;background:none;color:var(--accent);cursor:pointer;font:inherit;font-size:12px;padding:0}
+.toolbar{display:flex;gap:10px;margin-bottom:12px}
+.toolbar input{flex:1}
+.list{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.row{display:grid;grid-template-columns:1.4fr 1.2fr 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--border);background:var(--surface)}
+.row:first-child{border-top:0}
+.row.head{background:var(--surface-2);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.row .name{font-weight:600}
+.row .sub{font-size:12px;color:var(--muted);word-break:break-all}
+.row .acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+@media (max-width:640px){
+  .row{grid-template-columns:1fr;gap:4px}
+  .row.head{display:none}
+  .row .acts{justify-content:flex-start;margin-top:6px}
+}
+.empty{padding:28px;text-align:center;color:var(--muted);background:var(--surface)}
+dialog{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);padding:0;width:min(560px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog .body{padding:20px}
+.login{max-width:520px;margin:8vh auto 0}
+ol.steps{padding-left:20px;margin:8px 0 0;font-size:14px}
+ol.steps li{margin-bottom:4px}
+.spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:s .7s linear infinite;display:inline-block}
+@keyframes s{to{transform:rotate(360deg)}}
+
+/* Anleitung */
+.login{max-width:720px}
+.login>.card+.card{margin-top:20px}
+.guide-steps{list-style:none;padding:0;margin:20px 0 0;counter-reset:st}
+.guide-steps>li{counter-increment:st;position:relative;padding:0 0 32px 44px}
+.guide-steps>li:last-child{padding-bottom:0}
+.guide-steps>li::before{content:counter(st);position:absolute;left:0;top:0;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--accent-text);display:grid;place-items:center;font-weight:700;font-size:14px}
+.guide-steps>li:not(:last-child)::after{content:"";position:absolute;left:14px;top:38px;bottom:8px;width:2px;background:var(--border)}
+.guide-steps h4{margin:3px 0 6px;font-size:16px}
+.guide-steps ul{margin:6px 0 0;padding-left:18px}
+.guide-steps ul li{margin-bottom:4px}
+table.perm{border-collapse:collapse;margin:10px 0 4px;font-size:14px;width:100%;max-width:440px}
+table.perm td,table.perm th{border:1px solid var(--border);padding:6px 10px;text-align:left}
+table.perm th{background:var(--surface-2);font-size:12px}
+.shot{margin:14px 0 0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{font-size:12px;color:var(--muted);padding:6px 10px;border-top:1px solid var(--border);background:var(--surface-2)}
+.mock{font-size:12px;color:var(--text)}
+.mock .bar{display:flex;align-items:center;gap:5px;padding:6px 10px;background:var(--surface-2);border-bottom:1px solid var(--border)}
+.mock .bar i{width:8px;height:8px;border-radius:50%;background:var(--border)}
+.mock .url{flex:1;min-width:0;margin-left:6px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 8px;color:var(--muted);font-family:ui-monospace,Consolas,monospace;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.mock .in{padding:14px;display:grid;gap:8px}
+.mk-split{display:grid;grid-template-columns:120px 1fr;gap:14px}
+.mk-side{display:grid;gap:3px;align-content:start}
+.mk-nav{padding:3px 6px;color:var(--muted)}
+.mk-nav.b{color:var(--text);font-weight:600}
+.mk-acct{padding:4px 6px;font-weight:600;border:1px solid var(--border);border-radius:5px;margin-bottom:6px}
+.mk-main{display:grid;gap:8px;align-content:start;min-width:0}
+.mk-h{font-weight:700;font-size:13px}
+.mk-sub{color:var(--muted)}
+.mk-box{border:1px solid var(--border);border-radius:6px;padding:7px 10px}
+.mk-btn{justify-self:start;padding:4px 10px;border:1px solid var(--border);border-radius:5px;font-weight:600}
+.mk-btn.pri{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.mk-input{border:1px solid var(--border);border-radius:5px;padding:4px 8px;max-width:260px}
+.mk-perm{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 2px;border-bottom:1px solid var(--border)}
+.mk-perm.dim{opacity:.45}
+.mk-seg{display:inline-flex;border:1px solid var(--border);border-radius:5px;overflow:hidden;flex-shrink:0}
+.mk-seg b{font-weight:500;padding:2px 8px;border-left:1px solid var(--border)}
+.mk-seg b:first-child{border-left:0}
+.mk-seg b.on{background:var(--accent);color:var(--accent-text)}
+.mk-key{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hl{outline:2px solid #e8590c;outline-offset:2px;border-radius:5px}
+ul.checks{list-style:none;padding:0;margin:0 0 8px;display:grid;gap:4px;font-size:14px}
+ul.checks .ok{color:var(--ok)}
+ul.checks .bad{color:var(--err);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Login -->
+  <section id="loginView" class="login hidden">
+    <div class="card stack">
+      <div>
+        <h1>SEPA Kundenerfassung</h1>
+        <p class="muted" style="margin-top:6px">Kunden mit Bankverbindung und unterschriebenem Papier-Mandat in Stripe anlegen.</p>
+      </div>
+      <form id="loginForm" class="stack">
+        <div>
+          <label for="keyInput">Stripe-Schlüssel einfügen</label>
+          <input id="keyInput" class="mono" type="password" autocomplete="off" spellcheck="false" placeholder="rk_live_...">
+          <div class="hint">Noch keinen Schlüssel? Einfach der Anleitung unten folgen. Der Schlüssel bleibt nur in diesem Browser und wird ausschließlich an Stripe gesendet.</div>
+        </div>
+        <label class="check"><input type="checkbox" id="rememberKey" checked> Auf diesem Gerät angemeldet bleiben</label>
+        <div id="loginError" class="alert err hidden"></div>
+        <div id="permResult" class="hidden"></div>
+        <div class="actions"><button class="btn primary" type="submit" id="loginBtn">Prüfen und verbinden</button></div>
+      </form>
+    </div>
+
+    <div class="card" id="guide">
+      <h2>Anleitung: Schlüssel in Stripe erstellen</h2>
+      <p class="muted">Nur einmal nötig, dauert etwa 3 Minuten. Am besten Stripe in einem zweiten Fenster daneben öffnen.</p>
+
+      <ol class="guide-steps">
+        <li>
+          <h4>Stripe öffnen</h4>
+          <p><a class="btn small" href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer">Stripe API-Schlüssel öffnen ↗</a></p>
+          <ul>
+            <li>Mit dem Stripe-Login der Firma anmelden.</li>
+            <li><b>Oben links</b> prüfen, dass das richtige Firmenkonto ausgewählt ist.</li>
+            <li>Falls der Link nicht direkt dorthin führt: links unten auf <b>Entwickler</b> und dann auf <b>API-Schlüssel</b>.</li>
+            <li>Nur zum Ausprobieren: oben auf <b>Testmodus</b> bzw. <b>Sandbox</b> umschalten. Für den echten Betrieb ausgeschaltet lassen.</li>
+          </ul>
+          <figure class="shot" data-shot="anleitung/schritt-1.png">
+            <div class="mock">
+              <div class="bar"><i></i><i></i><i></i><span class="url">dashboard.stripe.com/apikeys</span></div>
+              <div class="in"><div class="mk-split">
+                <div class="mk-side"><div class="mk-acct hl">Firmenname ▾</div><div class="mk-nav">Startseite</div><div class="mk-nav">Zahlungen</div><div class="mk-nav">Kunden</div><div class="mk-nav b">Entwickler</div></div>
+                <div class="mk-main"><div class="mk-h">API-Schlüssel</div><div class="mk-box"><div class="mk-sub">Standardschlüssel</div></div><div class="mk-box"><div class="mk-sub">Eingeschränkte Schlüssel</div></div></div>
+              </div></div>
+            </div>
+            <figcaption>Schematische Darstellung. Stripe kann leicht anders aussehen.</figcaption>
+          </figure>
+        </li>
+
+        <li>
+          <h4>Eingeschränkten Schlüssel anlegen</h4>
+          <ul>
+            <li>Im Bereich <b>Eingeschränkte Schlüssel</b> auf <b>+ Eingeschränkten Schlüssel erstellen</b> klicken.</li>
+            <li>Falls Stripe fragt, wie der Schlüssel verwendet wird: die Option wählen, bei der man <b>die Berechtigungen selbst festlegt</b> (z.B. "Eigene Integration erstellen").</li>
+          </ul>
+          <figure class="shot" data-shot="anleitung/schritt-2.png">
+            <div class="mock">
+              <div class="bar"><i></i><i></i><i></i><span class="url">dashboard.stripe.com/apikeys</span></div>
+              <div class="in"><div class="mk-main">
+                <div class="mk-box"><div class="mk-sub">Standardschlüssel</div></div>
+                <div class="mk-box" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div class="mk-sub">Eingeschränkte Schlüssel</div><div class="mk-btn hl">+ Eingeschränkten Schlüssel erstellen</div></div>
+              </div></div>
+            </div>
+            <figcaption>Schematische Darstellung. Stripe kann leicht anders aussehen.</figcaption>
+          </figure>
+        </li>
+
+        <li>
+          <h4>Namen eingeben</h4>
+          <p>Als Schlüsselname <code>SEPA Kundenerfassung</code> eintragen. So erkennt man den Schlüssel später wieder.</p>
+          <figure class="shot" data-shot="anleitung/schritt-3.png">
+            <div class="mock">
+              <div class="bar"><i></i><i></i><i></i><span class="url">dashboard.stripe.com/apikeys/create</span></div>
+              <div class="in"><div class="mk-h">Eingeschränkten Schlüssel erstellen</div><div class="mk-sub">Schlüsselname</div><div class="mk-input hl">SEPA Kundenerfassung</div></div>
+            </div>
+            <figcaption>Schematische Darstellung. Stripe kann leicht anders aussehen.</figcaption>
+          </figure>
+        </li>
+
+        <li>
+          <h4>Berechtigungen setzen</h4>
+          <p>Darunter steht eine lange Liste. Genau diese vier Zeilen ändern, alles andere bleibt auf <b>Keine</b>:</p>
+          <table class="perm">
+            <tr><th>Zeile in Stripe</th><th>Einstellen auf</th></tr>
+            <tr><td><b>Customers</b></td><td>Schreiben</td></tr>
+            <tr><td><b>Mandates</b></td><td>Lesen</td></tr>
+            <tr><td><b>PaymentMethods</b></td><td>Schreiben</td></tr>
+            <tr><td><b>SetupIntents</b></td><td>Schreiben</td></tr>
+          </table>
+          <p class="hint">Tipp: Mit <b>Strg+F</b> (Mac: <b>Cmd+F</b>) den Namen suchen, dann findet man die Zeile sofort. Je nach Spracheinstellung heißt "Schreiben" auch "Write" und "Lesen" auch "Read".</p>
+          <figure class="shot" data-shot="anleitung/schritt-4.png">
+            <div class="mock">
+              <div class="bar"><i></i><i></i><i></i><span class="url">dashboard.stripe.com/apikeys/create</span></div>
+              <div class="in">
+                <div class="mk-perm dim"><span>Charges</span><span class="mk-seg"><b class="on">Keine</b><b>Lesen</b><b>Schreiben</b></span></div>
+                <div class="mk-perm"><span><b>Customers</b></span><span class="mk-seg hl"><b>Keine</b><b>Lesen</b><b class="on">Schreiben</b></span></div>
+                <div class="mk-perm"><span><b>Mandates</b></span><span class="mk-seg hl"><b>Keine</b><b class="on">Lesen</b><b>Schreiben</b></span></div>
+                <div class="mk-perm"><span><b>PaymentMethods</b></span><span class="mk-seg hl"><b>Keine</b><b>Lesen</b><b class="on">Schreiben</b></span></div>
+                <div class="mk-perm dim"><span>Refunds</span><span class="mk-seg"><b class="on">Keine</b><b>Lesen</b><b>Schreiben</b></span></div>
+                <div class="mk-perm"><span><b>SetupIntents</b></span><span class="mk-seg hl"><b>Keine</b><b>Lesen</b><b class="on">Schreiben</b></span></div>
+              </div>
+            </div>
+            <figcaption>Schematische Darstellung. Die Liste in Stripe ist viel länger, die Reihenfolge ist alphabetisch.</figcaption>
+          </figure>
+        </li>
+
+        <li>
+          <h4>Schlüssel erstellen und kopieren</h4>
+          <ul>
+            <li>Ganz unten auf <b>Schlüssel erstellen</b> klicken.</li>
+            <li>Stripe fragt eventuell nach einem Bestätigungscode (SMS, E-Mail oder Passwort).</li>
+            <li>Danach wird der Schlüssel angezeigt. Er beginnt mit <code>rk_live_</code> (im Testmodus <code>rk_test_</code>). Auf <b>Kopieren</b> klicken.</li>
+            <li>Wichtig: Stripe zeigt den Schlüssel unter Umständen nur <b>ein einziges Mal</b> an. Also direkt im nächsten Schritt einfügen.</li>
+          </ul>
+          <figure class="shot" data-shot="anleitung/schritt-5.png">
+            <div class="mock">
+              <div class="bar"><i></i><i></i><i></i><span class="url">dashboard.stripe.com/apikeys</span></div>
+              <div class="in"><div class="mk-btn pri hl">Schlüssel erstellen</div><div class="mk-sub" style="margin-top:6px">danach:</div><div class="mk-box mk-key"><code>rk_live_51Ab••••••••••xYz</code><span class="mk-btn hl">Kopieren</span></div></div>
+            </div>
+            <figcaption>Schematische Darstellung. Stripe kann leicht anders aussehen.</figcaption>
+          </figure>
+        </li>
+
+        <li>
+          <h4>Hier einfügen</h4>
+          <ul>
+            <li>Ganz oben auf dieser Seite in das Feld <b>Stripe-Schlüssel einfügen</b> klicken, mit <b>Strg+V</b> einfügen und auf <b>Prüfen und verbinden</b> klicken.</li>
+            <li>Das Tool prüft, ob alle vier Berechtigungen stimmen, und zeigt an, was eventuell fehlt.</li>
+            <li>Fehlt etwas: in Stripe beim Schlüssel rechts auf <b>⋯</b> → <b>Schlüssel bearbeiten</b>, Berechtigung ergänzen, speichern und hier nochmal auf "Prüfen und verbinden" klicken. Der Schlüssel bleibt derselbe.</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- App -->
+  <section id="appView" class="hidden">
+    <header class="top">
+      <h1>SEPA Kundenerfassung</h1>
+      <div class="acct">
+        <span id="acctName" class="small muted"></span>
+        <span id="modeBadge" class="badge"></span>
+        <button class="btn small" id="logoutBtn" type="button">Abmelden</button>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="new">Neuer Kunde</button>
+      <button role="tab" aria-selected="false" data-tab="list">Kunden</button>
+    </nav>
+
+    <!-- Neuer Kunde -->
+    <div id="tab-new" class="stack">
+      <form id="newForm" class="card" novalidate>
+        <div id="pendingBanner" class="alert warn hidden" style="margin-bottom:16px"></div>
+
+        <h3 style="margin-top:0">Kunde</h3>
+        <div class="grid">
+          <div class="full"><label for="c_name">Name <span class="req">*</span></label><input id="c_name" required autocomplete="off"></div>
+          <div><label for="c_email">E-Mail <span class="req">*</span></label><input id="c_email" type="email" required autocomplete="off"><div class="hint">Pflicht für SEPA. Stripe schickt hierhin die Mandats- und Vorabinfo.</div></div>
+          <div><label for="c_phone">Telefon</label><input id="c_phone" type="tel" autocomplete="off"></div>
+          <div><label for="c_ref">Kundennummer / Referenz</label><input id="c_ref" autocomplete="off"><div class="hint">Wird als Metadaten gespeichert und ist durchsuchbar.</div></div>
+          <div><label for="c_desc">Notiz</label><input id="c_desc" autocomplete="off"></div>
+        </div>
+
+        <h3>Adresse</h3>
+        <div class="grid">
+          <div class="full"><label for="a_line1">Straße und Hausnummer</label><input id="a_line1" autocomplete="off"></div>
+          <div><label for="a_zip">PLZ</label><input id="a_zip" autocomplete="off"></div>
+          <div><label for="a_city">Ort</label><input id="a_city" autocomplete="off"></div>
+          <div class="full"><label for="a_country">Land</label><select id="a_country"></select></div>
+        </div>
+
+        <h3>Bankverbindung und Mandat</h3>
+        <div class="grid">
+          <div class="full"><label for="b_holder">Kontoinhaber <span class="req">*</span></label><input id="b_holder" autocomplete="off"><div class="hint">Leer lassen, wenn identisch mit dem Kundennamen.</div></div>
+          <div class="full"><label for="b_iban">IBAN <span class="req">*</span></label><input id="b_iban" class="mono iban" autocomplete="off" spellcheck="false" placeholder="DE00 0000 0000 0000 0000 00"><div class="hint" data-iban-hint></div></div>
+          <div><label for="b_date">Mandat unterschrieben am <span class="req">*</span></label><input id="b_date" type="date"></div>
+          <div style="align-self:end"><label class="check"><input type="checkbox" id="b_default" checked> Als Standard-Zahlungsart setzen</label></div>
+          <div class="full"><label class="check"><input type="checkbox" id="b_confirm"> Das SEPA-Lastschriftmandat liegt unterschrieben auf Papier vor.</label></div>
+        </div>
+
+        <div id="newError" class="alert err hidden" style="margin-top:16px"></div>
+        <div class="actions" style="margin-top:20px">
+          <button class="btn primary" type="submit" id="newBtn">Kunde anlegen</button>
+          <button class="btn" type="button" id="resetBtn">Formular leeren</button>
+        </div>
+      </form>
+      <div id="newResult"></div>
+    </div>
+
+    <!-- Kundenliste -->
+    <div id="tab-list" class="hidden">
+      <form id="searchForm" class="toolbar">
+        <input id="searchInput" type="search" placeholder="Name, E-Mail oder Kundennummer">
+        <button class="btn" type="submit">Suchen</button>
+      </form>
+      <div id="listError" class="alert err hidden" style="margin-bottom:12px"></div>
+      <div class="list" id="custList"></div>
+      <div class="actions" style="margin-top:12px"><button class="btn hidden" id="moreBtn" type="button">Mehr laden</button></div>
+      <p class="hint" style="margin-top:12px">Die Suche greift auf den Stripe-Suchindex zu. Gerade angelegte Kunden erscheinen dort erst nach etwa einer Minute.</p>
+    </div>
+  </section>
+</div>
+
+<!-- SEPA zu bestehendem Kunden -->
+<dialog id="attachDlg">
+  <form id="attachForm" class="body stack" novalidate>
+    <div>
+      <h2>Bankverbindung hinterlegen</h2>
+      <p class="muted small" id="attachFor"></p>
+    </div>
+    <div class="grid">
+      <div class="full"><label for="d_holder">Kontoinhaber <span class="req">*</span></label><input id="d_holder" autocomplete="off"></div>
+      <div class="full"><label for="d_email">E-Mail <span class="req">*</span></label><input id="d_email" type="email" autocomplete="off"></div>
+      <div class="full"><label for="d_iban">IBAN <span class="req">*</span></label><input id="d_iban" class="mono iban" autocomplete="off" spellcheck="false"><div class="hint" data-iban-hint></div></div>
+      <div><label for="d_date">Unterschrieben am <span class="req">*</span></label><input id="d_date" type="date"></div>
+      <div style="align-self:end"><label class="check"><input type="checkbox" id="d_default" checked> Als Standard setzen</label></div>
+      <div class="full"><label class="check"><input type="checkbox" id="d_confirm"> Das Mandat liegt unterschrieben auf Papier vor.</label></div>
+    </div>
+    <div id="attachError" class="alert err hidden"></div>
+    <div id="attachResult"></div>
+    <div class="actions">
+      <button class="btn primary" type="submit" id="attachBtn">Hinterlegen</button>
+      <button class="btn" type="button" id="attachClose">Schließen</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+'use strict';
+
+const $ = s => document.querySelector(s);
+const STORE_KEY = 'sepa_tool_stripe_key';
+let KEY = null;
+let IS_TEST = false;
+
+// ---------- Storage ----------
+function readKey(){
+  try { return sessionStorage.getItem(STORE_KEY) || localStorage.getItem(STORE_KEY); } catch { return null; }
+}
+function writeKey(k, remember){
+  try {
+    sessionStorage.setItem(STORE_KEY, k);
+    if (remember) localStorage.setItem(STORE_KEY, k); else localStorage.removeItem(STORE_KEY);
+  } catch {}
+}
+function clearKey(){
+  try { sessionStorage.removeItem(STORE_KEY); localStorage.removeItem(STORE_KEY); } catch {}
+}
+
+// ---------- Stripe API ----------
+function encode(obj, prefix, out){
+  out = out || new URLSearchParams();
+  for (const [k, v] of Object.entries(obj)){
+    if (v === undefined || v === null || v === '') continue;
+    const key = prefix ? `${prefix}[${k}]` : k;
+    if (Array.isArray(v)) v.forEach((item, i) => {
+      if (typeof item === 'object') encode(item, `${key}[${i}]`, out); else out.append(`${key}[${i}]`, String(item));
+    });
+    else if (typeof v === 'object') encode(v, key, out);
+    else out.append(key, String(v));
+  }
+  return out;
+}
+
+async function api(method, path, params = {}){
+  const qs = encode(params).toString();
+  const isGet = method === 'GET';
+  let res;
+  try {
+    res = await fetch('https://api.stripe.com' + path + (isGet && qs ? '?' + qs : ''), {
+      method,
+      headers: {
+        'Authorization': 'Bearer ' + KEY,
+        ...(isGet ? {} : {'Content-Type': 'application/x-www-form-urlencoded'})
+      },
+      body: isGet ? undefined : qs
+    });
+  } catch (e) {
+    throw new Error('Keine Verbindung zu Stripe. Internetverbindung prüfen.');
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok){
+    const err = new Error(translateError(res.status, data.error));
+    err.stripe = data.error; err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+function translateError(status, e){
+  if (status === 401) return 'Der Schlüssel ist ungültig oder wurde in Stripe gelöscht.';
+  if (status === 403) return 'Dem Schlüssel fehlt eine Berechtigung (siehe Anleitung, Schritt 4). Stripe meldet: ' + (e?.message || 'Zugriff verweigert');
+  const map = {
+    invalid_bank_account_iban: 'Die IBAN ist ungültig.',
+    email_invalid: 'Die E-Mail-Adresse ist ungültig.',
+    payment_method_not_available: 'SEPA-Lastschrift ist für dieses Stripe-Konto nicht aktiviert. Im Dashboard unter Einstellungen → Zahlungsmethoden aktivieren.',
+  };
+  if (e?.code && map[e.code]) return map[e.code];
+  return e?.message || ('Stripe-Fehler ' + status);
+}
+
+// ---------- IBAN ----------
+const IBAN_LEN = {AD:24,AT:20,BE:16,BG:22,CH:21,CY:28,CZ:24,DE:22,DK:18,EE:20,ES:24,FI:18,FR:27,GB:22,GI:23,GR:27,HR:21,HU:28,IE:22,IS:26,IT:27,LI:21,LT:20,LU:20,LV:21,MC:27,MT:31,NL:18,NO:15,PL:28,PT:25,RO:24,SE:24,SI:19,SK:24,SM:27,VA:22};
+const cleanIban = s => s.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+function checkIban(raw){
+  const iban = cleanIban(raw);
+  if (!iban) return {ok:false, msg:''};
+  const cc = iban.slice(0, 2);
+  if (!/^[A-Z]{2}\d{2}/.test(iban)) return {ok:false, msg:'IBAN muss mit Ländercode und Prüfziffer beginnen, z.B. DE89.'};
+  if (!IBAN_LEN[cc]) return {ok:false, msg:`Ländercode ${cc} gehört nicht zum SEPA-Raum.`};
+  if (iban.length !== IBAN_LEN[cc]) return {ok:false, msg:`Eine ${cc}-IBAN hat ${IBAN_LEN[cc]} Zeichen, eingegeben sind ${iban.length}.`};
+  const r = iban.slice(4) + iban.slice(0, 4);
+  let rem = 0;
+  for (const ch of r){
+    const v = /\d/.test(ch) ? ch : String(ch.charCodeAt(0) - 55);
+    for (const d of v) rem = (rem * 10 + Number(d)) % 97;
+  }
+  if (rem !== 1) return {ok:false, msg:'Prüfziffer stimmt nicht. Bitte IBAN vom Formular nochmal abgleichen.'};
+  return {ok:true, msg:'IBAN gültig', iban};
+}
+const fmtIban = s => cleanIban(s).replace(/(.{4})/g, '$1 ').trim();
+
+document.querySelectorAll('input.iban').forEach(inp => {
+  const hint = inp.parentElement.querySelector('[data-iban-hint]');
+  inp.addEventListener('input', () => {
+    const pos = inp.selectionStart, before = inp.value.length;
+    inp.value = fmtIban(inp.value);
+    const p = pos + (inp.value.length - before);
+    try { inp.setSelectionRange(p, p); } catch {}
+    const r = checkIban(inp.value);
+    hint.textContent = r.msg;
+    hint.className = 'hint ' + (r.ok ? 'good' : (cleanIban(inp.value).length >= 15 ? 'bad' : ''));
+  });
+});
+
+// ---------- Helpers ----------
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => new Date().toLocaleDateString('sv-SE');
+const dashUrl = (kind, id) => `https://dashboard.stripe.com/${IS_TEST ? 'test/' : ''}${kind}/${id}`;
+const show = (el, on = true) => el.classList.toggle('hidden', !on);
+function setErr(el, msg){ el.textContent = msg || ''; show(el, !!msg); }
+function busy(btn, on, label){
+  btn.disabled = on;
+  if (on){ btn.dataset.label = btn.textContent; btn.innerHTML = `<span class="spin"></span> ${esc(label || 'Bitte warten')}`; }
+  else btn.textContent = btn.dataset.label || btn.textContent;
+}
+
+const COUNTRIES = [['DE','Deutschland'],['AT','Österreich'],['CH','Schweiz'],['NL','Niederlande'],['BE','Belgien'],['LU','Luxemburg'],['FR','Frankreich'],['IT','Italien'],['ES','Spanien'],['PL','Polen'],['CZ','Tschechien'],['DK','Dänemark'],['SE','Schweden'],['FI','Finnland'],['IE','Irland'],['PT','Portugal'],['GR','Griechenland'],['HR','Kroatien'],['SI','Slowenien'],['SK','Slowakei'],['HU','Ungarn'],['RO','Rumänien'],['BG','Bulgarien'],['LI','Liechtenstein'],['NO','Norwegen'],['GB','Vereinigtes Königreich']];
+$('#a_country').innerHTML = COUNTRIES.map(([c, n]) => `<option value="${c}">${n}</option>`).join('');
+
+document.querySelectorAll('input[type=date]').forEach(i => i.max = today());
+
+// ---------- SEPA hinterlegen ----------
+async function attachSepa(customerId, {holder, email, iban, signedDate, address, makeDefault}){
+  const acceptedAt = Math.min(
+    Math.floor(new Date(signedDate + 'T12:00:00').getTime() / 1000),
+    Math.floor(Date.now() / 1000) - 60
+  );
+  const si = await api('POST', '/v1/setup_intents', {
+    customer: customerId,
+    confirm: true,
+    usage: 'off_session',
+    payment_method_types: ['sepa_debit'],
+    payment_method_data: {
+      type: 'sepa_debit',
+      sepa_debit: {iban},
+      billing_details: {name: holder, email, address}
+    },
+    mandate_data: {customer_acceptance: {type: 'offline', accepted_at: acceptedAt}},
+    metadata: {quelle: 'Papierformular', mandat_unterschrieben_am: signedDate},
+    expand: ['payment_method']
+  });
+  if (si.status !== 'succeeded'){
+    throw new Error(si.last_setup_error?.message || `Bankverbindung konnte nicht bestätigt werden (Status: ${si.status}).`);
+  }
+  const pm = si.payment_method;
+  if (makeDefault){
+    await api('POST', `/v1/customers/${customerId}`, {invoice_settings: {default_payment_method: pm.id}});
+  }
+  let reference = null;
+  if (si.mandate){
+    try {
+      const m = await api('GET', `/v1/mandates/${si.mandate}`);
+      reference = m.payment_method_details?.sepa_debit?.reference || null;
+    } catch {}
+  }
+  return {si, pm, mandateId: si.mandate, reference};
+}
+
+function copyBtn(v){ return `<button type="button" class="copy" data-copy="${esc(v)}">kopieren</button>`; }
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-copy]');
+  if (!b) return;
+  navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = 'kopiert'; setTimeout(() => b.textContent = 'kopieren', 1200); });
+});
+
+function resultHtml(customer, r, title){
+  const sd = r.pm.sepa_debit || {};
+  return `<div class="card">
+    <div class="alert ok"><b>${esc(title)}</b></div>
+    <dl class="kv">
+      <dt>Kunde</dt><dd>${esc(customer.name || '')} <code>${esc(customer.id)}</code>${copyBtn(customer.id)}</dd>
+      <dt>Konto</dt><dd>${esc(sd.country || '')} •••• ${esc(sd.last4 || '')}${sd.bank_code ? ` <span class="muted">BLZ ${esc(sd.bank_code)}</span>` : ''}</dd>
+      ${r.reference ? `<dt>Mandatsreferenz</dt><dd><code>${esc(r.reference)}</code>${copyBtn(r.reference)}</dd>` : ''}
+      ${r.mandateId ? `<dt>Mandat-ID</dt><dd><code>${esc(r.mandateId)}</code></dd>` : ''}
+      <dt>Zahlungsmethode</dt><dd><code>${esc(r.pm.id)}</code></dd>
+    </dl>
+    <div class="actions" style="margin-top:16px">
+      <a class="btn small" href="${dashUrl('customers', customer.id)}" target="_blank" rel="noopener noreferrer">Im Stripe Dashboard öffnen</a>
+    </div>
+    ${r.reference ? '<p class="hint" style="margin-top:12px">Tipp: Mandatsreferenz auf dem Papierformular notieren.</p>' : ''}
+  </div>`;
+}
+
+// ---------- Neuer Kunde ----------
+let pendingCustomer = null;
+$('#b_date').value = today();
+
+function formAddress(){
+  const a = {line1: $('#a_line1').value.trim(), postal_code: $('#a_zip').value.trim(), city: $('#a_city').value.trim(), country: $('#a_country').value};
+  return (a.line1 || a.postal_code || a.city) ? a : {country: a.country};
+}
+
+$('#newForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = $('#newError'), btn = $('#newBtn');
+  setErr(err, '');
+  const name = $('#c_name').value.trim();
+  const email = $('#c_email').value.trim();
+  const holder = $('#b_holder').value.trim() || name;
+  const ibanCheck = checkIban($('#b_iban').value);
+  const signedDate = $('#b_date').value;
+
+  if (!name) return setErr(err, 'Bitte einen Namen eingeben.');
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setErr(err, 'Bitte eine gültige E-Mail-Adresse eingeben.');
+  if (!ibanCheck.ok) return setErr(err, ibanCheck.msg || 'Bitte eine IBAN eingeben.');
+  if (!signedDate) return setErr(err, 'Bitte das Datum der Unterschrift eingeben.');
+  if (!$('#b_confirm').checked) return setErr(err, 'Bitte bestätigen, dass das unterschriebene Mandat vorliegt.');
+
+  const address = formAddress();
+  const custParams = {
+    name, email,
+    phone: $('#c_phone').value.trim(),
+    description: $('#c_desc').value.trim(),
+    address: address.line1 ? address : undefined,
+    preferred_locales: ['de'],
+    metadata: {kundennummer: $('#c_ref').value.trim(), quelle: 'Papierformular'}
+  };
+
+  busy(btn, true, 'Wird angelegt');
+  try {
+    let customer;
+    if (pendingCustomer){
+      customer = await api('POST', `/v1/customers/${pendingCustomer.id}`, custParams);
+    } else {
+      const dup = await api('GET', '/v1/customers', {email, limit: 3});
+      if (dup.data.length && !confirm(`Es gibt bereits ${dup.data.length === 1 ? 'einen Kunden' : dup.data.length + ' Kunden'} mit ${email} (${dup.data.map(c => c.name || c.id).join(', ')}).\n\nTrotzdem einen neuen Kunden anlegen?\n\nTipp: Über "Kunden" kannst du die Bankverbindung auch beim bestehenden Kunden hinterlegen.`)){
+        return;
+      }
+      customer = await api('POST', '/v1/customers', custParams);
+      pendingCustomer = customer;
+    }
+    const r = await attachSepa(customer.id, {holder, email, iban: ibanCheck.iban, signedDate, address, makeDefault: $('#b_default').checked});
+    pendingCustomer = null;
+    show($('#pendingBanner'), false);
+    $('#newResult').innerHTML = resultHtml(customer, r, 'Kunde mit SEPA-Mandat angelegt');
+    resetForm(false);
+    $('#newResult').scrollIntoView({behavior: 'smooth', block: 'start'});
+  } catch (ex){
+    setErr(err, ex.message);
+    if (pendingCustomer){
+      const b = $('#pendingBanner');
+      b.innerHTML = `Der Kunde <code>${esc(pendingCustomer.id)}</code> wurde bereits angelegt, die Bankverbindung aber noch nicht. Daten korrigieren und erneut absenden, es wird kein zweiter Kunde erzeugt.`;
+      show(b, true);
+    }
+  } finally {
+    busy(btn, false);
+  }
+});
+
+function resetForm(clearResult = true){
+  $('#newForm').reset();
+  $('#b_date').value = today();
+  $('#a_country').value = 'DE';
+  document.querySelectorAll('#newForm [data-iban-hint]').forEach(h => { h.textContent = ''; h.className = 'hint'; });
+  setErr($('#newError'), '');
+  pendingCustomer = null;
+  show($('#pendingBanner'), false);
+  if (clearResult) $('#newResult').innerHTML = '';
+}
+$('#resetBtn').addEventListener('click', () => resetForm(true));
+
+// ---------- Kundenliste ----------
+let listState = {query: '', cursor: null, page: null, hasMore: false, items: []};
+
+function sepaLabel(c){
+  const pm = c.invoice_settings?.default_payment_method;
+  if (pm && typeof pm === 'object' && pm.type === 'sepa_debit') return `<span class="badge live">SEPA ${esc(pm.sepa_debit.country)} •••• ${esc(pm.sepa_debit.last4)}</span>`;
+  if (pm && typeof pm === 'object') return `<span class="badge">${esc(pm.type)}</span>`;
+  return '<span class="badge">keine</span>';
+}
+
+function renderList(){
+  const el = $('#custList');
+  if (!listState.items.length){ el.innerHTML = '<div class="empty">Keine Kunden gefunden.</div>'; show($('#moreBtn'), false); return; }
+  el.innerHTML = `<div class="row head"><div>Kunde</div><div>E-Mail</div><div>Standard-Zahlungsart</div><div></div></div>` +
+    listState.items.map((c, i) => `<div class="row">
+      <div><div class="name">${esc(c.name || '(ohne Name)')}</div><div class="sub">${esc(c.metadata?.kundennummer ? 'Nr. ' + c.metadata.kundennummer + ' · ' : '')}${esc(c.id)}</div></div>
+      <div class="sub" style="font-size:14px;color:var(--text)">${esc(c.email || '')}</div>
+      <div>${sepaLabel(c)}</div>
+      <div class="acts">
+        <button class="btn small" type="button" data-attach="${i}">SEPA hinterlegen</button>
+        <a class="btn small" href="${dashUrl('customers', c.id)}" target="_blank" rel="noopener noreferrer">Dashboard</a>
+      </div>
+    </div>`).join('');
+  show($('#moreBtn'), listState.hasMore);
+}
+
+async function loadCustomers(append){
+  const err = $('#listError');
+  setErr(err, '');
+  if (!append){ listState.items = []; listState.cursor = null; listState.page = null; $('#custList').innerHTML = '<div class="empty"><span class="spin"></span></div>'; }
+  const expand = ['data.invoice_settings.default_payment_method'];
+  try {
+    let res;
+    if (listState.query){
+      const q = listState.query.replace(/["\\]/g, '');
+      res = await api('GET', '/v1/customers/search', {
+        query: `name~"${q}" OR email~"${q}" OR metadata["kundennummer"]:"${q}"`,
+        limit: 25, page: listState.page, expand
+      });
+      listState.page = res.next_page;
+    } else {
+      res = await api('GET', '/v1/customers', {limit: 25, starting_after: listState.cursor, expand});
+      listState.cursor = res.data.length ? res.data[res.data.length - 1].id : null;
+    }
+    listState.hasMore = res.has_more;
+    listState.items = listState.items.concat(res.data);
+    renderList();
+  } catch (ex){
+    setErr(err, ex.message);
+    if (!append) $('#custList').innerHTML = '';
+  }
+}
+
+$('#searchForm').addEventListener('submit', e => { e.preventDefault(); listState.query = $('#searchInput').value.trim(); loadCustomers(false); });
+$('#moreBtn').addEventListener('click', () => loadCustomers(true));
+
+// ---------- Dialog: SEPA zu bestehendem Kunden ----------
+let attachCustomer = null;
+const dlg = $('#attachDlg');
+
+$('#custList').addEventListener('click', e => {
+  const b = e.target.closest('[data-attach]');
+  if (!b) return;
+  attachCustomer = listState.items[Number(b.dataset.attach)];
+  $('#attachForm').reset();
+  $('#attachFor').textContent = `${attachCustomer.name || ''} (${attachCustomer.id})`;
+  $('#d_holder').value = attachCustomer.name || '';
+  $('#d_email').value = attachCustomer.email || '';
+  $('#d_date').value = today();
+  dlg.querySelector('[data-iban-hint]').textContent = '';
+  setErr($('#attachError'), '');
+  $('#attachResult').innerHTML = '';
+  show($('#attachBtn'), true);
+  dlg.showModal();
+  $('#d_iban').focus();
+});
+$('#attachClose').addEventListener('click', () => dlg.close());
+
+$('#attachForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = $('#attachError'), btn = $('#attachBtn');
+  setErr(err, '');
+  const holder = $('#d_holder').value.trim();
+  const email = $('#d_email').value.trim();
+  const ibanCheck = checkIban($('#d_iban').value);
+  const signedDate = $('#d_date').value;
+  if (!holder) return setErr(err, 'Bitte den Kontoinhaber eingeben.');
+  if (!email) return setErr(err, 'Für SEPA wird eine E-Mail-Adresse benötigt.');
+  if (!ibanCheck.ok) return setErr(err, ibanCheck.msg || 'Bitte eine IBAN eingeben.');
+  if (!signedDate) return setErr(err, 'Bitte das Datum der Unterschrift eingeben.');
+  if (!$('#d_confirm').checked) return setErr(err, 'Bitte bestätigen, dass das unterschriebene Mandat vorliegt.');
+
+  busy(btn, true, 'Wird hinterlegt');
+  try {
+    const c = attachCustomer;
+    const address = c.address && c.address.line1 ? {line1: c.address.line1, line2: c.address.line2, postal_code: c.address.postal_code, city: c.address.city, country: c.address.country} : undefined;
+    if (!c.email) await api('POST', `/v1/customers/${c.id}`, {email});
+    const r = await attachSepa(c.id, {holder, email, iban: ibanCheck.iban, signedDate, address, makeDefault: $('#d_default').checked});
+    $('#attachResult').innerHTML = resultHtml(c, r, 'Bankverbindung hinterlegt');
+    show(btn, false);
+    if ($('#d_default').checked){ c.invoice_settings = {...(c.invoice_settings || {}), default_payment_method: r.pm}; renderList(); }
+  } catch (ex){
+    setErr(err, ex.message);
+  } finally {
+    busy(btn, false);
+  }
+});
+
+// ---------- Tabs ----------
+document.querySelectorAll('.tabs button').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+  show($('#tab-new'), t.dataset.tab === 'new');
+  show($('#tab-list'), t.dataset.tab === 'list');
+  if (t.dataset.tab === 'list' && !listState.items.length) loadCustomers(false);
+}));
+
+// ---------- Anleitung: echte Screenshots statt Skizze, falls vorhanden ----------
+// Liegt z.B. anleitung/schritt-1.png neben dieser Datei, wird es statt der Skizze angezeigt.
+document.querySelectorAll('figure[data-shot]').forEach(fig => {
+  const img = new Image();
+  img.alt = 'Screenshot';
+  img.onload = () => {
+    fig.querySelector('.mock')?.replaceWith(img);
+    const cap = fig.querySelector('figcaption');
+    if (cap) cap.textContent = 'Screenshot aus Stripe';
+  };
+  img.src = fig.dataset.shot;
+});
+
+// ---------- Login ----------
+// Jede Prüfung ruft eine nicht existierende ID ab: 403 heißt "Berechtigung fehlt",
+// 404 heißt "Berechtigung vorhanden". Dabei wird nichts angelegt oder geändert.
+const PERM_CHECKS = [
+  {label: 'Customers: Schreiben', method: 'POST', path: '/v1/customers/cus_berechtigungstest'},
+  {label: 'Mandates: Lesen', method: 'GET', path: '/v1/mandates/mandate_berechtigungstest'},
+  {label: 'PaymentMethods: Schreiben', method: 'POST', path: '/v1/payment_methods/pm_berechtigungstest'},
+  {label: 'SetupIntents: Schreiben', method: 'POST', path: '/v1/setup_intents/seti_berechtigungstest'},
+];
+
+async function checkPermissions(){
+  const results = [];
+  for (const c of PERM_CHECKS){
+    try {
+      await api(c.method, c.path);
+      results.push({...c, ok: true});
+    } catch (e){
+      if (!e.status) throw e;
+      if (e.status === 401) throw new Error('Der Schlüssel ist ungültig. Bitte in Stripe nochmal kopieren und neu einfügen.');
+      results.push({...c, ok: e.status !== 403});
+    }
+  }
+  return results;
+}
+
+async function connect(key){
+  KEY = key;
+  IS_TEST = /_test_/.test(key);
+  await api('GET', '/v1/customers', {limit: 1});
+  $('#modeBadge').textContent = IS_TEST ? 'Testmodus' : 'Live';
+  $('#modeBadge').className = 'badge ' + (IS_TEST ? 'test' : 'live');
+  $('#acctName').textContent = '';
+  api('GET', '/v1/account').then(a => {
+    $('#acctName').textContent = a.settings?.dashboard?.display_name || a.business_profile?.name || a.email || a.id;
+  }).catch(() => {});
+  show($('#loginView'), false);
+  show($('#appView'), true);
+}
+
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const key = $('#keyInput').value.trim();
+  const err = $('#loginError'), btn = $('#loginBtn'), perm = $('#permResult');
+  setErr(err, '');
+  show(perm, false);
+  if (!key) return setErr(err, 'Bitte zuerst den Schlüssel aus Stripe einfügen (Anleitung unten).');
+  if (/^pk_/.test(key)) return setErr(err, 'Das ist der öffentliche Schlüssel (pk_). Benötigt wird ein eingeschränkter Schlüssel, der mit rk_ beginnt. Siehe Anleitung unten.');
+  if (!/^(rk|sk)_(test|live)_\w+$/.test(key)) return setErr(err, 'Das sieht nicht wie ein Stripe-Schlüssel aus. Er beginnt mit rk_live_ oder rk_test_. Beim Kopieren ist evtl. etwas abgeschnitten worden.');
+  busy(btn, true, 'Prüfe Berechtigungen');
+  KEY = key;
+  try {
+    const results = await checkPermissions();
+    const missing = results.filter(r => !r.ok);
+    if (missing.length){
+      perm.innerHTML = `<div class="alert warn"><b>Der Schlüssel funktioniert, aber es fehlen Berechtigungen:</b>
+        <ul class="checks" style="margin-top:8px">${results.map(r => `<li class="${r.ok ? 'ok' : 'bad'}">${r.ok ? '✓' : '✗'} ${esc(r.label)}${r.ok ? '' : ' (fehlt)'}</li>`).join('')}</ul>
+        In Stripe beim Schlüssel rechts auf <b>⋯</b> → <b>Schlüssel bearbeiten</b>, die rot markierten Berechtigungen setzen, speichern und dann hier nochmal auf "Prüfen und verbinden" klicken.</div>`;
+      show(perm, true);
+      KEY = null;
+      return;
+    }
+    await connect(key);
+    writeKey(key, $('#rememberKey').checked);
+    $('#keyInput').value = '';
+  } catch (ex){
+    KEY = null;
+    setErr(err, ex.message);
+  } finally {
+    busy(btn, false);
+  }
+});
+
+$('#logoutBtn').addEventListener('click', () => {
+  clearKey(); KEY = null;
+  resetForm(true);
+  listState = {query: '', cursor: null, page: null, hasMore: false, items: []};
+  $('#custList').innerHTML = '';
+  show($('#appView'), false);
+  show($('#loginView'), true);
+});
+
+// ---------- Start ----------
+const saved = readKey();
+if (saved){
+  connect(saved).catch(ex => {
+    clearKey(); KEY = null;
+    show($('#loginView'), true);
+    setErr($('#loginError'), ex.message);
+  });
+} else {
+  show($('#loginView'), true);
+}
+})();
+</script>
+</body>
+</html>
