@@ -146,7 +146,7 @@ ul.checks{list-style:none;padding:0;margin:0 0 8px;display:grid;gap:4px;font-siz
 ul.checks .ok{color:var(--ok)}
 ul.checks .bad{color:var(--err);font-weight:600}
 
-/* Zahlungen und Sammeleinzug */
+/* Zahlungen */
 .tabs{overflow-x:auto}
 .tabs button{white-space:nowrap}
 .badge.err{background:var(--err-soft);color:var(--err)}
@@ -160,10 +160,6 @@ table.data input{padding:5px 8px}
 table.data input[type=checkbox]{width:auto;margin-top:4px}
 table.data input.amt{width:100px;text-align:right}
 table.data input.desc{min-width:170px}
-table.data tr.dup td{background:var(--warn-soft)}
-.sumbar{position:sticky;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 -2px 10px rgba(0,0,0,.08)}
-.sumbar b{font-size:16px}
-textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:13px/1.4 ui-monospace,Consolas,monospace}
 .pre{white-space:pre-line}
 </style>
 </head>
@@ -318,8 +314,8 @@ textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bor
     <nav class="tabs" role="tablist">
       <button role="tab" aria-selected="true" data-tab="new">Neuer Kunde</button>
       <button role="tab" aria-selected="false" data-tab="list">Kunden</button>
+      <button role="tab" aria-selected="false" data-tab="charge">Einziehen</button>
       <button role="tab" aria-selected="false" data-tab="payments">Zahlungen</button>
-      <button role="tab" aria-selected="false" data-tab="bulk">Sammeleinzug</button>
     </nav>
 
     <!-- Neuer Kunde -->
@@ -334,7 +330,7 @@ textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bor
           <div><label for="c_phone">Telefon</label><input id="c_phone" type="tel" autocomplete="off"></div>
           <div><label for="c_ref">Kundennummer / Referenz</label><input id="c_ref" autocomplete="off"><div class="hint">Wird als Metadaten gespeichert und ist durchsuchbar.</div></div>
           <div><label for="c_desc">Notiz</label><input id="c_desc" autocomplete="off"></div>
-          <div><label for="c_amount">Standardbetrag für Lastschriften (€)</label><input id="c_amount" inputmode="decimal" placeholder="z.B. 150,00" autocomplete="off"><div class="hint">Optional. Wird beim Einziehen und im Sammeleinzug vorausgefüllt.</div></div>
+          <div><label for="c_amount">Standardbetrag für Lastschriften (€)</label><input id="c_amount" inputmode="decimal" placeholder="z.B. 150,00" autocomplete="off"><div class="hint">Optional. Wird beim Einziehen vorausgefüllt.</div></div>
         </div>
 
         <h3>Adresse</h3>
@@ -390,37 +386,32 @@ textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bor
       <p class="hint" style="margin-top:12px">SEPA-Lastschriften stehen zuerst einige Werktage auf "In Bearbeitung". Erst danach steht fest, ob die Bank das Geld freigibt. Kunden können eine Lastschrift bis zu 8 Wochen lang zurückbuchen lassen.</p>
     </div>
 
-    <!-- Sammeleinzug -->
-    <div id="tab-bulk" class="hidden stack">
+    <!-- Einziehen -->
+    <div id="tab-charge" class="hidden stack">
       <div class="permWarn alert warn hidden"></div>
       <div class="card stack">
-        <div>
-          <h2>Sammeleinzug</h2>
-          <p class="muted small">Mehrere SEPA-Lastschriften auf einmal auslösen. Angezeigt werden alle Kunden mit SEPA-Bankverbindung. Beim Kunden gespeicherte Standardbeträge sind schon eingetragen und können für diesen Einzug einfach überschrieben werden.</p>
+        <h3 style="margin:0">1. Kunde auswählen</h3>
+        <div id="chPicked" class="hidden"></div>
+        <div id="chSearchBox" class="stack">
+          <form id="chSearchForm" class="toolbar" style="margin:0">
+            <input id="chSearch" type="search" placeholder="Name, E-Mail oder Kundennummer" autocomplete="off">
+            <button class="btn" type="submit">Suchen</button>
+          </form>
+          <div class="list" id="chResults"></div>
         </div>
+      </div>
+      <form id="chargeForm" class="card stack hidden" novalidate>
+        <h3 style="margin:0">2. Betrag und Verwendungszweck</h3>
         <div class="grid">
-          <div class="full"><label for="bk_desc">Verwendungszweck <span class="req">*</span></label><input id="bk_desc" placeholder="z.B. Schulgeld November 2026" autocomplete="off"><div class="hint">Gilt für alle Zeilen, in denen kein eigener Verwendungszweck steht. Erscheint in Stripe und in der Benachrichtigung an den Kunden.</div></div>
-          <div><label for="bk_amount">Betrag für alle markierten (€)</label><div class="actions" style="flex-wrap:nowrap"><input id="bk_amount" inputmode="decimal" placeholder="z.B. 150,00" autocomplete="off"><button class="btn" type="button" id="bk_applyAmt">Übernehmen</button></div></div>
-          <div><label for="bk_filter">Liste filtern</label><input id="bk_filter" type="search" placeholder="Name, E-Mail, Kundennummer"></div>
+          <div><label for="ch_amount">Betrag (€) <span class="req">*</span></label><input id="ch_amount" inputmode="decimal" placeholder="150,00" autocomplete="off"></div>
+          <div class="full"><label for="ch_desc">Verwendungszweck <span class="req">*</span></label><input id="ch_desc" placeholder="z.B. Schulgeld November 2026" autocomplete="off"><div class="hint">Erscheint in Stripe und in der Benachrichtigung an den Kunden.</div></div>
+          <div class="full"><label class="check"><input type="checkbox" id="ch_save" checked> Betrag als Standardbetrag für diesen Kunden speichern (wird beim nächsten Mal vorausgefüllt)</label></div>
         </div>
-        <label class="check"><input type="checkbox" id="bk_save" checked> Geänderte Beträge beim Kunden als neuen Standardbetrag speichern (beim nächsten Einzug schon vorausgefüllt)</label>
-      </div>
-      <div id="bk_error" class="alert err pre hidden"></div>
-      <div class="tbl-wrap">
-        <table class="data">
-          <thead><tr><th><input type="checkbox" id="bk_all" title="Alle markieren"></th><th>Kunde</th><th>Konto</th><th>Eigener Verwendungszweck</th><th class="num">Betrag €</th><th>Ergebnis</th></tr></thead>
-          <tbody id="bk_body"></tbody>
-        </table>
-      </div>
-      <div class="sumbar">
-        <div><b id="bk_sum">0 Zahlungen · 0,00 €</b><div class="hint" id="bk_status"></div></div>
-        <div class="actions">
-          <button class="btn" type="button" id="bk_reload">Neu laden</button>
-          <button class="btn" type="button" id="bk_saveAmounts" title="Eingetragene Beträge als Standardbetrag speichern, ohne etwas einzuziehen">Beträge speichern</button>
-          <button class="btn" type="button" id="bk_export" disabled>Ergebnis als CSV</button>
-          <button class="btn primary" type="button" id="bk_run" disabled>Einzug starten</button>
-        </div>
-      </div>
+        <div id="chRecent"></div>
+        <div id="chargeError" class="alert err hidden"></div>
+        <div id="chargeResult"></div>
+        <div class="actions"><button class="btn primary" type="submit" id="chargeBtn">Jetzt einziehen</button></div>
+      </form>
     </div>
   </section>
 </div>
@@ -445,27 +436,6 @@ textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bor
     <div class="actions">
       <button class="btn primary" type="submit" id="attachBtn">Hinterlegen</button>
       <button class="btn" type="button" id="attachClose">Schließen</button>
-    </div>
-  </form>
-</dialog>
-
-<!-- Einzelne Lastschrift -->
-<dialog id="chargeDlg">
-  <form id="chargeForm" class="body stack" novalidate>
-    <div>
-      <h2>Lastschrift einziehen</h2>
-      <p class="muted small" id="chargeFor"></p>
-    </div>
-    <div class="grid">
-      <div><label for="ch_amount">Betrag (€) <span class="req">*</span></label><input id="ch_amount" inputmode="decimal" placeholder="150,00" autocomplete="off"></div>
-      <div class="full"><label for="ch_desc">Verwendungszweck <span class="req">*</span></label><input id="ch_desc" placeholder="z.B. Schulgeld November 2026" autocomplete="off"></div>
-      <div class="full"><label class="check"><input type="checkbox" id="ch_save" checked> Betrag als Standardbetrag für diesen Kunden speichern</label></div>
-    </div>
-    <div id="chargeError" class="alert err hidden"></div>
-    <div id="chargeResult"></div>
-    <div class="actions">
-      <button class="btn primary" type="submit" id="chargeBtn">Jetzt einziehen</button>
-      <button class="btn" type="button" id="chargeClose">Schließen</button>
     </div>
   </form>
 </dialog>
@@ -899,13 +869,13 @@ function piBadge(pi){
   return `<span class="badge ${cls}">${esc(text)}</span>`;
 }
 
-async function chargeSepa({customerId, pmId, amount, description, batch}){
+async function chargeSepa({customerId, pmId, amount, description}){
   const params = {
     amount, currency: 'eur', customer: customerId, payment_method: pmId,
     confirm: true, off_session: true,
     automatic_payment_methods: {enabled: true, allow_redirects: 'never'},
     description,
-    metadata: {quelle: 'SEPA Kundenerfassung', sammeleinzug: batch}
+    metadata: {quelle: 'SEPA Kundenerfassung'}
   };
   try {
     return await api('POST', '/v1/payment_intents', params);
@@ -940,47 +910,140 @@ async function checkPayPerm(){
   return payPermOk;
 }
 
-// Einzelne Lastschrift aus der Kundenliste
+// Einziehen: Kunde auswählen, dann Betrag und Verwendungszweck
 let chargeCustomer = null;
-const chargeDlg = $('#chargeDlg');
+let chargeResults = [];
+let chargeRecent = [];
 
-$('#custList').addEventListener('click', e => {
-  const b = e.target.closest('[data-charge]');
-  if (!b) return;
-  chargeCustomer = listState.items[Number(b.dataset.charge)];
-  const pm = sepaPm(chargeCustomer);
-  $('#chargeForm').reset();
-  if (savedAmount(chargeCustomer)) $('#ch_amount').value = fmtAmountInput(savedAmount(chargeCustomer));
-  $('#chargeFor').textContent = `${chargeCustomer.name || chargeCustomer.email || chargeCustomer.id} · SEPA ${pm.sepa_debit.country} •••• ${pm.sepa_debit.last4}`;
+const customerSub = c => [c.metadata?.kundennummer && 'Nr. ' + c.metadata.kundennummer, c.email].filter(Boolean).join(' · ');
+
+async function searchChargeCustomers(){
+  const box = $('#chResults');
+  const q = $('#chSearch').value.trim().replace(/["\\]/g, '');
+  box.innerHTML = '<div class="empty"><span class="spin"></span></div>';
+  try {
+    const expand = ['data.invoice_settings.default_payment_method'];
+    const res = q
+      ? await api('GET', '/v1/customers/search', {query: `name~"${q}" OR email~"${q}" OR metadata["kundennummer"]:"${q}"`, limit: 20, expand})
+      : await api('GET', '/v1/customers', {limit: 20, expand});
+    chargeResults = res.data;
+    box.innerHTML = chargeResults.length ? chargeResults.map((c, i) => `<div class="row">
+      <div><div class="name">${esc(c.name || '(ohne Name)')}</div><div class="sub">${esc(customerSub(c))}</div></div>
+      <div>${sepaLabel(c)}</div>
+      <div class="sub">${savedAmount(c) ? 'Standard ' + esc(fmtEur(savedAmount(c))) : ''}</div>
+      <div class="acts">${sepaPm(c) ? `<button class="btn small primary" type="button" data-pick="${i}">Auswählen</button>` : '<span class="hint">keine SEPA-Bankverbindung</span>'}</div>
+    </div>`).join('') : '<div class="empty">Keine Kunden gefunden.</div>';
+  } catch (ex){
+    box.innerHTML = `<div class="alert err">${esc(ex.message)}</div>`;
+  }
+}
+
+async function pickChargeCustomer(c){
+  chargeCustomer = c;
+  const pm = sepaPm(c);
+  const sub = customerSub(c);
+  $('#chPicked').innerHTML = `<div class="mk-box" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div><div style="font-weight:600">${esc(c.name || c.id)}</div><div class="hint">${esc(sub)}${sub ? ' · ' : ''}SEPA ${esc(pm.sepa_debit.country)} •••• ${esc(pm.sepa_debit.last4)}</div></div>
+      <button class="btn small" type="button" data-change>Anderen Kunden wählen</button>
+    </div>`;
+  show($('#chPicked'), true);
+  show($('#chSearchBox'), false);
+  show($('#chargeForm'), true);
+  $('#ch_amount').value = savedAmount(c) ? fmtAmountInput(savedAmount(c)) : '';
+  $('#ch_desc').value = '';
+  $('#ch_save').checked = true;
   setErr($('#chargeError'), '');
   $('#chargeResult').innerHTML = '';
   show($('#chargeBtn'), true);
-  chargeDlg.showModal();
   $('#ch_amount').focus();
+
+  chargeRecent = [];
+  $('#chRecent').innerHTML = '';
+  try {
+    const res = await api('GET', '/v1/payment_intents', {customer: c.id, limit: 5});
+    if (chargeCustomer !== c) return;
+    chargeRecent = res.data;
+    renderChargeRecent();
+  } catch {}
+}
+
+function renderChargeRecent(){
+  $('#chRecent').innerHTML = chargeRecent.length
+    ? `<div class="hint" style="margin-bottom:4px">Letzte Zahlungen dieses Kunden:</div>
+       <ul class="checks">${chargeRecent.map(pi => `<li>${fmtDate(pi.created)} · ${fmtMoney(pi.amount, pi.currency)} · ${esc(pi.description || 'ohne Verwendungszweck')} ${piBadge(pi)}</li>`).join('')}</ul>`
+    : '<div class="hint">Bei diesem Kunden wurde bisher nichts eingezogen.</div>';
+}
+
+function resetCharge(){
+  chargeCustomer = null;
+  chargeRecent = [];
+  show($('#chPicked'), false);
+  show($('#chSearchBox'), true);
+  show($('#chargeForm'), false);
+}
+
+$('#chPicked').addEventListener('click', e => {
+  if (!e.target.closest('[data-change]')) return;
+  resetCharge();
+  if (!chargeResults.length) searchChargeCustomers();
+  $('#chSearch').focus();
 });
-$('#chargeClose').addEventListener('click', () => chargeDlg.close());
+$('#chSearchForm').addEventListener('submit', e => { e.preventDefault(); searchChargeCustomers(); });
+$('#chResults').addEventListener('click', e => {
+  const b = e.target.closest('[data-pick]');
+  if (b) pickChargeCustomer(chargeResults[Number(b.dataset.pick)]);
+});
+
+// Aus der Kundenliste direkt zum Einziehen
+$('#custList').addEventListener('click', e => {
+  const b = e.target.closest('[data-charge]');
+  if (!b) return;
+  openTab('charge');
+  pickChargeCustomer(listState.items[Number(b.dataset.charge)]);
+});
+
+$('#chargeResult').addEventListener('click', e => {
+  if (!e.target.closest('[data-next]')) return;
+  resetCharge();
+  $('#chSearch').value = '';
+  searchChargeCustomers();
+  $('#chSearch').focus();
+});
 
 $('#chargeForm').addEventListener('submit', async e => {
   e.preventDefault();
   const err = $('#chargeError'), btn = $('#chargeBtn');
   setErr(err, '');
+  const c = chargeCustomer;
+  if (!c) return;
   const amount = parseAmount($('#ch_amount').value);
   const description = $('#ch_desc').value.trim();
   if (!Number.isFinite(amount)) return setErr(err, 'Bitte einen gültigen Betrag eingeben, z.B. 150,00.');
   if (amount < 50) return setErr(err, 'Der Mindestbetrag bei Stripe ist 0,50 €.');
   if (!description) return setErr(err, 'Bitte einen Verwendungszweck eingeben.');
-  const c = chargeCustomer;
-  if (!confirm(`${fmtEur(amount)} per SEPA-Lastschrift von ${c.name || c.email || c.id} einziehen?\n\nVerwendungszweck: ${description}`)) return;
+  if (!await checkPayPerm()) return;
+
+  const dup = chargeRecent.find(pi => !['canceled', 'requires_payment_method'].includes(pi.status)
+    && (pi.description || '').trim().toLowerCase() === description.toLowerCase());
+  let msg = `${fmtEur(amount)} per SEPA-Lastschrift von ${c.name || c.email || c.id} einziehen?\n\nVerwendungszweck: ${description}`;
+  if (dup) msg += `\n\nACHTUNG: Mit diesem Verwendungszweck wurden am ${fmtDate(dup.created)} schon ${fmtMoney(dup.amount, dup.currency)} eingezogen.`;
+  if (!confirm(msg)) return;
+
   busy(btn, true, 'Wird eingezogen');
   try {
-    const pi = await chargeSepa({customerId: c.id, pmId: sepaPm(c).id, amount, description, batch: 'einzeln'});
+    const pi = await chargeSepa({customerId: c.id, pmId: sepaPm(c).id, amount, description});
     const failed = pi.status === 'requires_payment_method';
     if (!failed && $('#ch_save').checked && amount !== savedAmount(c)){
-      try { await saveStandardAmount(c, amount); renderList(); } catch {}
+      try { await saveStandardAmount(c, amount); } catch {}
     }
     $('#chargeResult').innerHTML = `<div class="alert ${failed ? 'err' : 'ok'}">
       ${failed ? `<b>Lastschrift abgelehnt.</b> ${esc(pi.last_payment_error?.message || '')}` : `<b>Lastschrift über ${fmtEur(amount)} ausgelöst.</b> Status: ${esc(PI_STATUS[pi.status]?.[0] || pi.status)}. Das Geld ist nach einigen Werktagen da.`}
-      <div style="margin-top:8px"><a href="${dashUrl('payments', pi.id)}" target="_blank" rel="noopener noreferrer">In Stripe ansehen</a></div></div>`;
+      <div class="actions" style="margin-top:10px">
+        <a class="btn small" href="${dashUrl('payments', pi.id)}" target="_blank" rel="noopener noreferrer">In Stripe ansehen</a>
+        <button class="btn small primary" type="button" data-next>Nächsten Kunden einziehen</button>
+      </div></div>`;
+    chargeRecent.unshift(pi);
+    renderChargeRecent();
     show(btn, false);
     payState.loaded = false;
   } catch (ex){
@@ -1030,273 +1093,16 @@ function renderPayments(){
 $('#payReload').addEventListener('click', () => loadPayments(false));
 $('#payMore').addEventListener('click', () => loadPayments(true));
 
-// ---------- Sammeleinzug ----------
-let bulk = {rows: [], loaded: false, running: false, batch: null};
-let recentByCustomer = new Map();
-
-async function loadBulkCustomers(){
-  const body = $('#bk_body');
-  setErr($('#bk_error'), '');
-  body.innerHTML = '<tr><td colspan="6"><span class="spin"></span> Kunden werden geladen...</td></tr>';
-  try {
-    const all = [];
-    let after = null;
-    do {
-      const res = await api('GET', '/v1/customers', {limit: 100, starting_after: after, expand: ['data.invoice_settings.default_payment_method']});
-      all.push(...res.data);
-      after = res.has_more ? res.data[res.data.length - 1].id : null;
-      $('#bk_status').textContent = `${all.length} Kunden geladen...`;
-    } while (after);
-    bulk.rows = all.filter(sepaPm)
-      .map(c => ({c, pm: sepaPm(c), checked: false, amountText: savedAmount(c) ? fmtAmountInput(savedAmount(c)) : '', desc: '', result: null}))
-      .sort((a, b) => (a.c.name || '').localeCompare(b.c.name || '', 'de'));
-    bulk.loaded = true;
-    await loadRecentPayments();
-    $('#bk_status').textContent = `${bulk.rows.length} von ${all.length} Kunden haben eine SEPA-Bankverbindung.`;
-    $('#bk_export').disabled = true;
-    renderBulk();
-  } catch (ex){
-    setErr($('#bk_error'), ex.message);
-    body.innerHTML = '';
-  }
-}
-
-// Zahlungen der letzten 45 Tage, um doppelte Einzüge sichtbar zu machen
-async function loadRecentPayments(){
-  recentByCustomer = new Map();
-  const since = Math.floor(Date.now() / 1000) - 45 * 86400;
-  let after = null, pages = 0;
-  do {
-    const res = await api('GET', '/v1/payment_intents', {limit: 100, starting_after: after, created: {gte: since}});
-    for (const pi of res.data){
-      if (!pi.customer || pi.status === 'canceled' || pi.status === 'requires_payment_method') continue;
-      const id = typeof pi.customer === 'string' ? pi.customer : pi.customer.id;
-      if (!recentByCustomer.has(id)) recentByCustomer.set(id, []);
-      recentByCustomer.get(id).push(pi);
-    }
-    after = res.has_more ? res.data[res.data.length - 1].id : null;
-  } while (after && ++pages < 20);
-}
-
-const generalDesc = () => $('#bk_desc').value.trim();
-const rowDesc = r => r.desc.trim() || generalDesc();
-
-function dupOf(r){
-  const d = rowDesc(r).toLowerCase();
-  if (!d) return null;
-  return (recentByCustomer.get(r.c.id) || []).find(pi => (pi.description || '').trim().toLowerCase() === d) || null;
-}
-
-function bulkVisible(){
-  const q = $('#bk_filter').value.trim().toLowerCase();
-  return bulk.rows.filter(r => !q || [r.c.name, r.c.email, r.c.metadata?.kundennummer].some(v => (v || '').toLowerCase().includes(q)));
-}
-
-function bulkResultCell(r){
-  if (!r.result) return '';
-  if (r.result.running) return '<span class="spin"></span>';
-  if (r.result.pi && r.result.ok) return `${piBadge(r.result.pi)} <a class="small" href="${dashUrl('payments', r.result.pi.id)}" target="_blank" rel="noopener noreferrer">ansehen</a>`;
-  return `<span class="badge err">${r.result.unclear ? 'Unklar' : 'Fehler'}</span><div class="hint bad">${esc(r.result.text)}</div>`;
-}
-
-function renderBulk(){
-  const rows = bulkVisible();
-  const lock = bulk.running ? 'disabled' : '';
-  $('#bk_body').innerHTML = rows.length ? rows.map(r => {
-    const i = bulk.rows.indexOf(r);
-    const done = !!r.result?.ok;
-    const last = (recentByCustomer.get(r.c.id) || [])[0];
-    const dup = !done && dupOf(r);
-    const sub = [r.c.metadata?.kundennummer && 'Nr. ' + r.c.metadata.kundennummer, r.c.email].filter(Boolean).join(' · ');
-    return `<tr data-i="${i}" class="${dup ? 'dup' : ''}">
-      <td><input type="checkbox" data-k="checked" ${r.checked ? 'checked' : ''} ${done ? 'disabled' : lock}></td>
-      <td><div style="font-weight:600">${esc(r.c.name || '(ohne Name)')}</div>
-        ${sub ? `<div class="hint">${esc(sub)}</div>` : ''}
-        ${last ? `<div class="hint">Zuletzt: ${fmtDate(last.created)}, ${fmtMoney(last.amount, last.currency)}${last.description ? ', ' + esc(last.description) : ''}</div>` : ''}
-        ${dup ? `<div class="hint bad">Mit diesem Verwendungszweck am ${fmtDate(dup.created)} schon eingezogen.</div>` : ''}</td>
-      <td style="white-space:nowrap">${esc(r.pm.sepa_debit.country)} •••• ${esc(r.pm.sepa_debit.last4)}</td>
-      <td><input class="desc" data-k="desc" value="${esc(r.desc)}" placeholder="${esc(generalDesc() || 'wie oben')}" ${done ? 'disabled' : lock}></td>
-      <td class="num"><input class="amt" data-k="amountText" inputmode="decimal" value="${esc(r.amountText)}" ${done ? 'disabled' : lock}></td>
-      <td data-result>${bulkResultCell(r)}</td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="6" class="muted">${bulk.rows.length ? 'Keine Treffer für den Filter.' : 'Keine Kunden mit SEPA-Bankverbindung gefunden.'}</td></tr>`;
-  updateBulkSum();
-}
-
-function updateRowResult(r){
-  const cell = $(`#bk_body tr[data-i="${bulk.rows.indexOf(r)}"] [data-result]`);
-  if (cell) cell.innerHTML = bulkResultCell(r);
-}
-
-const selectedRows = () => bulk.rows.filter(r => r.checked && !r.result?.ok);
-
-function updateBulkSum(){
-  const sel = selectedRows();
-  let sum = 0, bad = 0;
-  for (const r of sel){
-    const a = parseAmount(r.amountText);
-    if (validAmount(a)) sum += a; else bad++;
-  }
-  $('#bk_sum').textContent = `${sel.length} Zahlung${sel.length === 1 ? '' : 'en'} · ${fmtEur(sum)}` + (bad ? ` · ${bad} ohne gültigen Betrag` : '');
-  $('#bk_run').disabled = bulk.running || !sel.length;
-  const vis = bulkVisible().filter(r => !r.result?.ok);
-  $('#bk_all').checked = vis.length > 0 && vis.every(r => r.checked);
-}
-
-function onBulkInput(e){
-  const tr = e.target.closest('tr[data-i]');
-  const k = e.target.dataset.k;
-  if (!tr || !k) return;
-  const r = bulk.rows[Number(tr.dataset.i)];
-  if (k === 'checked') r.checked = e.target.checked;
-  else {
-    r[k] = e.target.value;
-    // Wer einen Betrag einträgt, will die Zeile auch einziehen
-    if (k === 'amountText' && e.target.value.trim() && !r.checked){
-      r.checked = true;
-      tr.querySelector('[data-k="checked"]').checked = true;
-    }
-  }
-  updateBulkSum();
-}
-$('#bk_body').addEventListener('input', onBulkInput);
-$('#bk_body').addEventListener('change', onBulkInput);
-
-$('#bk_all').addEventListener('change', e => {
-  bulkVisible().filter(r => !r.result?.ok).forEach(r => r.checked = e.target.checked);
-  renderBulk();
-});
-$('#bk_filter').addEventListener('input', renderBulk);
-$('#bk_desc').addEventListener('change', renderBulk);
-$('#bk_reload').addEventListener('click', loadBulkCustomers);
-
-$('#bk_applyAmt').addEventListener('click', () => {
-  const a = parseAmount($('#bk_amount').value);
-  setErr($('#bk_error'), '');
-  if (!validAmount(a)) return setErr($('#bk_error'), 'Bitte einen gültigen Betrag eingeben (mindestens 0,50 €), z.B. 150,00.');
-  const sel = selectedRows();
-  if (!sel.length) return setErr($('#bk_error'), 'Bitte zuerst Kunden markieren (Häkchen links, oder oben in der Kopfzeile alle markieren).');
-  sel.forEach(r => r.amountText = fmtAmountInput(a));
-  renderBulk();
-});
-
-// Standardbeträge ohne Einzug speichern
-$('#bk_saveAmounts').addEventListener('click', async () => {
-  setErr($('#bk_error'), '');
-  const todo = bulk.rows.filter(r => {
-    const a = parseAmount(r.amountText);
-    return validAmount(a) && a !== savedAmount(r.c);
-  });
-  if (!todo.length) return setErr($('#bk_error'), 'Es gibt keine geänderten Beträge zum Speichern.');
-  const btn = $('#bk_saveAmounts');
-  busy(btn, true, 'Speichere');
-  let ok = 0;
-  const failed = [];
-  for (const r of todo){
-    try { await saveStandardAmount(r.c, parseAmount(r.amountText)); ok++; }
-    catch (e){ failed.push(`${r.c.name || r.c.id}: ${e.message}`); }
-  }
-  busy(btn, false);
-  $('#bk_status').textContent = `${ok} Standardbetr${ok === 1 ? 'ag' : 'äge'} gespeichert.`;
-  if (failed.length) setErr($('#bk_error'), 'Nicht gespeichert:\n' + failed.join('\n'));
-});
-
-const warnLeave = e => { e.preventDefault(); e.returnValue = ''; };
-
-$('#bk_run').addEventListener('click', async () => {
-  setErr($('#bk_error'), '');
-  const sel = selectedRows();
-  const problems = [];
-  for (const r of sel){
-    if (!validAmount(parseAmount(r.amountText))) problems.push(`${r.c.name || r.c.id}: kein gültiger Betrag (mindestens 0,50 €)`);
-    if (!rowDesc(r)) problems.push(`${r.c.name || r.c.id}: kein Verwendungszweck`);
-  }
-  if (problems.length){
-    return setErr($('#bk_error'), 'Bitte zuerst korrigieren:\n' + problems.slice(0, 10).join('\n') + (problems.length > 10 ? `\n... und ${problems.length - 10} weitere` : ''));
-  }
-  if (!await checkPayPerm()) return;
-
-  const total = sel.reduce((s, r) => s + parseAmount(r.amountText), 0);
-  const dups = sel.filter(dupOf);
-  let msg = `${sel.length} SEPA-Lastschrift${sel.length === 1 ? '' : 'en'} über insgesamt ${fmtEur(total)} jetzt einziehen?\n\n`
-    + (IS_TEST ? '(Testmodus, es fließt kein echtes Geld.)' : 'Das löst echte Abbuchungen von den Konten der Kunden aus.');
-  if (dups.length) msg += `\n\nACHTUNG: Bei ${dups.length} Kunde${dups.length === 1 ? '' : 'n'} wurde derselbe Verwendungszweck in den letzten Wochen schon eingezogen (gelb markiert). Diese würden ebenfalls nochmal belastet.`;
-  if (!confirm(msg)) return;
-
-  bulk.running = true;
-  bulk.batch = 'SE-' + new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
-  window.addEventListener('beforeunload', warnLeave);
-  $('#bk_export').disabled = true;
-  renderBulk();
-
-  let ok = 0, fail = 0, n = 0;
-  for (const r of sel){
-    n++;
-    $('#bk_status').textContent = `Läuft: ${n} von ${sel.length}. Bitte die Seite nicht schließen.`;
-    r.result = {running: true};
-    updateRowResult(r);
-    try {
-      const pi = await chargeSepa({customerId: r.c.id, pmId: r.pm.id, amount: parseAmount(r.amountText), description: rowDesc(r), batch: bulk.batch});
-      if (pi.status === 'requires_payment_method'){
-        r.result = {ok: false, pi, text: pi.last_payment_error?.message || 'Von der Bank abgelehnt.'};
-        fail++;
-      } else {
-        r.result = {ok: true, pi};
-        r.checked = false;
-        if ($('#bk_save').checked && pi.amount !== savedAmount(r.c)){
-          try { await saveStandardAmount(r.c, pi.amount); } catch {}
-        }
-        if (!recentByCustomer.has(r.c.id)) recentByCustomer.set(r.c.id, []);
-        recentByCustomer.get(r.c.id).unshift(pi);
-        ok++;
-      }
-    } catch (e){
-      // Bei Verbindungsabbruch ist unklar, ob Stripe die Zahlung angelegt hat: nicht automatisch erneut markieren
-      r.result = {ok: false, unclear: !!e.network, text: e.network ? UNCLEAR_MSG : e.message};
-      if (e.network) r.checked = false;
-      fail++;
-    }
-    updateRowResult(r);
-  }
-
-  bulk.running = false;
-  window.removeEventListener('beforeunload', warnLeave);
-  $('#bk_status').textContent = `Fertig: ${ok} ausgelöst, ${fail} fehlgeschlagen. Sammel-ID in Stripe (Metadaten "sammeleinzug"): ${bulk.batch}`;
-  $('#bk_export').disabled = false;
-  payState.loaded = false;
-  renderBulk();
-});
-
-$('#bk_export').addEventListener('click', () => {
-  const lines = [['Name', 'E-Mail', 'Kundennummer', 'Betrag', 'Verwendungszweck', 'Ergebnis', 'Stripe-Zahlung', 'Fehler']];
-  for (const r of bulk.rows.filter(r => r.result && !r.result.running)){
-    lines.push([
-      r.c.name || '', r.c.email || '', r.c.metadata?.kundennummer || '', r.amountText, rowDesc(r),
-      r.result.ok ? (PI_STATUS[r.result.pi.status]?.[0] || r.result.pi.status) : (r.result.unclear ? 'Unklar' : 'Fehler'),
-      r.result.pi?.id || '', r.result.text || ''
-    ]);
-  }
-  const cell = v => /[;"\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
-  const csv = '﻿' + lines.map(l => l.map(cell).join(';')).join('\r\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
-  a.download = `sammeleinzug-${bulk.batch || 'export'}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-});
-
 // ---------- Tabs ----------
-const TABS = {new: '#tab-new', list: '#tab-list', payments: '#tab-payments', bulk: '#tab-bulk'};
-document.querySelectorAll('.tabs button').forEach(t => t.addEventListener('click', () => {
-  const tab = t.dataset.tab;
-  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+const TABS = {new: '#tab-new', list: '#tab-list', charge: '#tab-charge', payments: '#tab-payments'};
+function openTab(tab){
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', String(x.dataset.tab === tab)));
   for (const [k, sel] of Object.entries(TABS)) show($(sel), k === tab);
   if (tab === 'list' && !listState.items.length) loadCustomers(false);
+  if (tab === 'charge'){ checkPayPerm(); if (!chargeCustomer && !chargeResults.length) searchChargeCustomers(); }
   if (tab === 'payments'){ checkPayPerm(); if (!payState.loaded) loadPayments(false); }
-  if (tab === 'bulk'){ checkPayPerm(); if (!bulk.loaded) loadBulkCustomers(); }
-}));
+}
+document.querySelectorAll('.tabs button').forEach(t => t.addEventListener('click', () => openTab(t.dataset.tab)));
 
 // ---------- Anleitung: echte Screenshots statt Skizze, falls vorhanden ----------
 // Liegt z.B. anleitung/schritt-1.png neben dieser Datei, wird es statt der Skizze angezeigt.
@@ -1385,15 +1191,15 @@ $('#loginForm').addEventListener('submit', async e => {
 });
 
 $('#logoutBtn').addEventListener('click', () => {
-  if (bulk.running && !confirm('Der Sammeleinzug läuft noch. Trotzdem abmelden?')) return;
   clearKey(); KEY = null;
   payPermOk = null;
   payState = {cursor: null, items: [], loaded: false};
-  bulk = {rows: [], loaded: false, running: false, batch: null};
-  recentByCustomer = new Map();
-  if (chargeDlg.open) chargeDlg.close();
+  chargeResults = [];
+  resetCharge();
+  $('#chResults').innerHTML = '';
+  $('#chSearch').value = '';
   if (dlg.open) dlg.close();
-  document.querySelector('.tabs button[data-tab="new"]').click();
+  openTab('new');
   resetForm(true);
   listState = {query: '', cursor: null, page: null, hasMore: false, items: []};
   $('#custList').innerHTML = '';
