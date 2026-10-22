@@ -334,6 +334,7 @@ textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bor
           <div><label for="c_phone">Telefon</label><input id="c_phone" type="tel" autocomplete="off"></div>
           <div><label for="c_ref">Kundennummer / Referenz</label><input id="c_ref" autocomplete="off"><div class="hint">Wird als Metadaten gespeichert und ist durchsuchbar.</div></div>
           <div><label for="c_desc">Notiz</label><input id="c_desc" autocomplete="off"></div>
+          <div><label for="c_amount">Standardbetrag für Lastschriften (€)</label><input id="c_amount" inputmode="decimal" placeholder="z.B. 150,00" autocomplete="off"><div class="hint">Optional. Wird beim Einziehen und im Sammeleinzug vorausgefüllt.</div></div>
         </div>
 
         <h3>Adresse</h3>
@@ -395,25 +396,14 @@ textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bor
       <div class="card stack">
         <div>
           <h2>Sammeleinzug</h2>
-          <p class="muted small">Mehrere SEPA-Lastschriften auf einmal auslösen. Angezeigt werden alle Kunden, bei denen eine SEPA-Bankverbindung als Standard-Zahlungsart hinterlegt ist.</p>
+          <p class="muted small">Mehrere SEPA-Lastschriften auf einmal auslösen. Angezeigt werden alle Kunden mit SEPA-Bankverbindung. Beim Kunden gespeicherte Standardbeträge sind schon eingetragen und können für diesen Einzug einfach überschrieben werden.</p>
         </div>
         <div class="grid">
           <div class="full"><label for="bk_desc">Verwendungszweck <span class="req">*</span></label><input id="bk_desc" placeholder="z.B. Schulgeld November 2026" autocomplete="off"><div class="hint">Gilt für alle Zeilen, in denen kein eigener Verwendungszweck steht. Erscheint in Stripe und in der Benachrichtigung an den Kunden.</div></div>
           <div><label for="bk_amount">Betrag für alle markierten (€)</label><div class="actions" style="flex-wrap:nowrap"><input id="bk_amount" inputmode="decimal" placeholder="z.B. 150,00" autocomplete="off"><button class="btn" type="button" id="bk_applyAmt">Übernehmen</button></div></div>
           <div><label for="bk_filter">Liste filtern</label><input id="bk_filter" type="search" placeholder="Name, E-Mail, Kundennummer"></div>
         </div>
-        <details>
-          <summary style="cursor:pointer;font-weight:600">Beträge aus Excel oder CSV übernehmen</summary>
-          <div class="stack" style="margin-top:10px">
-            <p class="small muted">Eine Zeile pro Zahlung: zuerst <b>Kundennummer</b>, <b>E-Mail</b> oder <b>Stripe-Kunden-ID</b> (cus_...), dann der <b>Betrag</b>, optional ein eigener <b>Verwendungszweck</b>. Spalten in Excel markieren, kopieren und hier einfügen, oder eine CSV-Datei wählen (Trennzeichen Semikolon oder Tab).</p>
-            <textarea id="bk_csv" spellcheck="false" placeholder="Kundennummer;Betrag;Verwendungszweck&#10;10023;150,00&#10;max@example.com;75,50;Schulgeld und Ausflug"></textarea>
-            <div class="actions">
-              <button class="btn" type="button" id="bk_csvApply">Übernehmen</button>
-              <label class="btn">Datei wählen<input type="file" id="bk_file" accept=".csv,.txt,text/csv,text/plain" hidden></label>
-            </div>
-            <div id="bk_csvResult"></div>
-          </div>
-        </details>
+        <label class="check"><input type="checkbox" id="bk_save" checked> Geänderte Beträge beim Kunden als neuen Standardbetrag speichern (beim nächsten Einzug schon vorausgefüllt)</label>
       </div>
       <div id="bk_error" class="alert err pre hidden"></div>
       <div class="tbl-wrap">
@@ -426,6 +416,7 @@ textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bor
         <div><b id="bk_sum">0 Zahlungen · 0,00 €</b><div class="hint" id="bk_status"></div></div>
         <div class="actions">
           <button class="btn" type="button" id="bk_reload">Neu laden</button>
+          <button class="btn" type="button" id="bk_saveAmounts" title="Eingetragene Beträge als Standardbetrag speichern, ohne etwas einzuziehen">Beträge speichern</button>
           <button class="btn" type="button" id="bk_export" disabled>Ergebnis als CSV</button>
           <button class="btn primary" type="button" id="bk_run" disabled>Einzug starten</button>
         </div>
@@ -468,6 +459,7 @@ textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bor
     <div class="grid">
       <div><label for="ch_amount">Betrag (€) <span class="req">*</span></label><input id="ch_amount" inputmode="decimal" placeholder="150,00" autocomplete="off"></div>
       <div class="full"><label for="ch_desc">Verwendungszweck <span class="req">*</span></label><input id="ch_desc" placeholder="z.B. Schulgeld November 2026" autocomplete="off"></div>
+      <div class="full"><label class="check"><input type="checkbox" id="ch_save" checked> Betrag als Standardbetrag für diesen Kunden speichern</label></div>
     </div>
     <div id="chargeError" class="alert err hidden"></div>
     <div id="chargeResult"></div>
@@ -697,6 +689,8 @@ $('#newForm').addEventListener('submit', async e => {
   if (!ibanCheck.ok) return setErr(err, ibanCheck.msg || 'Bitte eine IBAN eingeben.');
   if (!signedDate) return setErr(err, 'Bitte das Datum der Unterschrift eingeben.');
   if (!$('#b_confirm').checked) return setErr(err, 'Bitte bestätigen, dass das unterschriebene Mandat vorliegt.');
+  const stdAmount = parseAmount($('#c_amount').value);
+  if (stdAmount !== null && !validAmount(stdAmount)) return setErr(err, 'Der Standardbetrag ist ungültig. Bitte z.B. 150,00 eingeben (mindestens 0,50 €) oder leer lassen.');
 
   const address = formAddress();
   const custParams = {
@@ -705,7 +699,7 @@ $('#newForm').addEventListener('submit', async e => {
     description: $('#c_desc').value.trim(),
     address: address.line1 ? address : undefined,
     preferred_locales: ['de'],
-    metadata: {kundennummer: $('#c_ref').value.trim(), quelle: 'Papierformular'}
+    metadata: {kundennummer: $('#c_ref').value.trim(), quelle: 'Papierformular', standardbetrag_cent: stdAmount ? String(stdAmount) : undefined}
   };
 
   busy(btn, true, 'Wird angelegt');
@@ -771,7 +765,7 @@ function renderList(){
   if (!listState.items.length){ el.innerHTML = '<div class="empty">Keine Kunden gefunden.</div>'; show($('#moreBtn'), false); return; }
   el.innerHTML = `<div class="row head"><div>Kunde</div><div>E-Mail</div><div>Standard-Zahlungsart</div><div></div></div>` +
     listState.items.map((c, i) => `<div class="row">
-      <div><div class="name">${esc(c.name || '(ohne Name)')}</div><div class="sub">${esc(c.metadata?.kundennummer ? 'Nr. ' + c.metadata.kundennummer + ' · ' : '')}${esc(c.id)}</div></div>
+      <div><div class="name">${esc(c.name || '(ohne Name)')}</div><div class="sub">${esc([c.metadata?.kundennummer && 'Nr. ' + c.metadata.kundennummer, savedAmount(c) && 'Standard ' + fmtEur(savedAmount(c)), c.id].filter(Boolean).join(' · '))}</div></div>
       <div class="sub" style="font-size:14px;color:var(--text)">${esc(c.email || '')}</div>
       <div>${sepaLabel(c)}</div>
       <div class="acts">
@@ -881,6 +875,16 @@ function parseAmount(s){
 const validAmount = a => Number.isFinite(a) && a >= 50;
 const fmtAmountInput = cents => (cents / 100).toFixed(2).replace('.', ',');
 
+// Standardbetrag pro Kunde, gespeichert in den Stripe-Metadaten (in Cent)
+function savedAmount(c){
+  const v = parseInt(c.metadata?.standardbetrag_cent, 10);
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+async function saveStandardAmount(c, cents){
+  await api('POST', `/v1/customers/${c.id}`, {metadata: {standardbetrag_cent: String(cents)}});
+  c.metadata = {...(c.metadata || {}), standardbetrag_cent: String(cents)};
+}
+
 const PI_STATUS = {
   processing: ['In Bearbeitung', 'warn'],
   succeeded: ['Erfolgreich', 'live'],
@@ -946,6 +950,7 @@ $('#custList').addEventListener('click', e => {
   chargeCustomer = listState.items[Number(b.dataset.charge)];
   const pm = sepaPm(chargeCustomer);
   $('#chargeForm').reset();
+  if (savedAmount(chargeCustomer)) $('#ch_amount').value = fmtAmountInput(savedAmount(chargeCustomer));
   $('#chargeFor').textContent = `${chargeCustomer.name || chargeCustomer.email || chargeCustomer.id} · SEPA ${pm.sepa_debit.country} •••• ${pm.sepa_debit.last4}`;
   setErr($('#chargeError'), '');
   $('#chargeResult').innerHTML = '';
@@ -970,6 +975,9 @@ $('#chargeForm').addEventListener('submit', async e => {
   try {
     const pi = await chargeSepa({customerId: c.id, pmId: sepaPm(c).id, amount, description, batch: 'einzeln'});
     const failed = pi.status === 'requires_payment_method';
+    if (!failed && $('#ch_save').checked && amount !== savedAmount(c)){
+      try { await saveStandardAmount(c, amount); renderList(); } catch {}
+    }
     $('#chargeResult').innerHTML = `<div class="alert ${failed ? 'err' : 'ok'}">
       ${failed ? `<b>Lastschrift abgelehnt.</b> ${esc(pi.last_payment_error?.message || '')}` : `<b>Lastschrift über ${fmtEur(amount)} ausgelöst.</b> Status: ${esc(PI_STATUS[pi.status]?.[0] || pi.status)}. Das Geld ist nach einigen Werktagen da.`}
       <div style="margin-top:8px"><a href="${dashUrl('payments', pi.id)}" target="_blank" rel="noopener noreferrer">In Stripe ansehen</a></div></div>`;
@@ -1040,7 +1048,7 @@ async function loadBulkCustomers(){
       $('#bk_status').textContent = `${all.length} Kunden geladen...`;
     } while (after);
     bulk.rows = all.filter(sepaPm)
-      .map(c => ({c, pm: sepaPm(c), checked: false, amountText: '', desc: '', result: null}))
+      .map(c => ({c, pm: sepaPm(c), checked: false, amountText: savedAmount(c) ? fmtAmountInput(savedAmount(c)) : '', desc: '', result: null}))
       .sort((a, b) => (a.c.name || '').localeCompare(b.c.name || '', 'de'));
     bulk.loaded = true;
     await loadRecentPayments();
@@ -1172,89 +1180,25 @@ $('#bk_applyAmt').addEventListener('click', () => {
   renderBulk();
 });
 
-// CSV / Excel
-function parseCsv(text){
-  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
-  if (!lines.length) return [];
-  const delim = ['\t', ';', ','].map(d => [d, lines[0].split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
-  return lines.map(line => {
-    const out = [];
-    let cur = '', q = false;
-    for (let i = 0; i < line.length; i++){
-      const ch = line[i];
-      if (q){
-        if (ch === '"' && line[i + 1] === '"'){ cur += '"'; i++; }
-        else if (ch === '"') q = false;
-        else cur += ch;
-      }
-      else if (ch === '"') q = true;
-      else if (ch === delim){ out.push(cur.trim()); cur = ''; }
-      else cur += ch;
-    }
-    out.push(cur.trim());
-    return out;
+// Standardbeträge ohne Einzug speichern
+$('#bk_saveAmounts').addEventListener('click', async () => {
+  setErr($('#bk_error'), '');
+  const todo = bulk.rows.filter(r => {
+    const a = parseAmount(r.amountText);
+    return validAmount(a) && a !== savedAmount(r.c);
   });
-}
-
-function findBulkRows(ident){
-  const s = ident.trim(), low = s.toLowerCase();
-  if (/^cus_/.test(s)) return bulk.rows.filter(r => r.c.id === s);
-  if (s.includes('@')) return bulk.rows.filter(r => (r.c.email || '').toLowerCase() === low);
-  const byRef = bulk.rows.filter(r => (r.c.metadata?.kundennummer || '').trim().toLowerCase() === low);
-  return byRef.length ? byRef : bulk.rows.filter(r => (r.c.name || '').trim().toLowerCase() === low);
-}
-
-function applyCsv(text){
-  const out = $('#bk_csvResult');
-  if (!bulk.loaded){ out.innerHTML = '<div class="alert warn">Die Kundenliste wird noch geladen. Bitte kurz warten.</div>'; return; }
-  const rows = parseCsv(text);
-  if (!rows.length){ out.innerHTML = ''; return; }
-  let idI = 0, amI = 1, deI = 2, start = 0;
-  if (!Number.isFinite(parseAmount(rows[0][1]))){
-    // Kopfzeile: Spalten anhand der Überschriften finden
-    const h = rows[0].map(x => x.toLowerCase());
-    const find = re => h.findIndex(x => re.test(x));
-    amI = find(/betrag|amount|summe|eur/); if (amI < 0) amI = 1;
-    deI = find(/zweck|beschreibung|description|text/);
-    idI = find(/kund|nummer|nr|mail|id|customer/); if (idI < 0) idI = 0;
-    start = 1;
+  if (!todo.length) return setErr($('#bk_error'), 'Es gibt keine geänderten Beträge zum Speichern.');
+  const btn = $('#bk_saveAmounts');
+  busy(btn, true, 'Speichere');
+  let ok = 0;
+  const failed = [];
+  for (const r of todo){
+    try { await saveStandardAmount(r.c, parseAmount(r.amountText)); ok++; }
+    catch (e){ failed.push(`${r.c.name || r.c.id}: ${e.message}`); }
   }
-  const res = {ok: 0, missing: [], ambiguous: [], badAmount: []};
-  for (const row of rows.slice(start)){
-    const ident = (row[idI] || '').trim();
-    if (!ident) continue;
-    const amount = parseAmount(row[amI]);
-    const matches = findBulkRows(ident);
-    if (!matches.length){ res.missing.push(ident); continue; }
-    if (matches.length > 1){ res.ambiguous.push(ident); continue; }
-    if (!validAmount(amount)){ res.badAmount.push(`${ident} (${row[amI] || 'leer'})`); continue; }
-    const r = matches[0];
-    if (r.result?.ok) continue;
-    r.checked = true;
-    r.amountText = fmtAmountInput(amount);
-    if (deI >= 0 && row[deI]) r.desc = row[deI];
-    res.ok++;
-  }
-  const probs = [
-    res.missing.length && `Nicht gefunden (keine SEPA-Bankverbindung oder falsche Angabe): ${res.missing.join(', ')}`,
-    res.ambiguous.length && `Mehrdeutig, mehrere Kunden passen: ${res.ambiguous.join(', ')}`,
-    res.badAmount.length && `Ungültiger Betrag: ${res.badAmount.join(', ')}`,
-  ].filter(Boolean);
-  out.innerHTML = `<div class="alert ${probs.length ? 'warn' : 'ok'} pre"><b>${res.ok} Zeile${res.ok === 1 ? '' : 'n'} übernommen und markiert.</b>${probs.length ? '\n' + esc(probs.join('\n')) : ''}</div>`;
-  renderBulk();
-}
-
-$('#bk_csvApply').addEventListener('click', () => applyCsv($('#bk_csv').value));
-$('#bk_file').addEventListener('change', async e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const buf = await f.arrayBuffer();
-  let text = new TextDecoder('utf-8').decode(buf);
-  // Excel speichert CSV unter Windows oft nicht als UTF-8
-  if (text.includes('�')) text = new TextDecoder('windows-1252').decode(buf);
-  $('#bk_csv').value = text;
-  e.target.value = '';
-  applyCsv(text);
+  busy(btn, false);
+  $('#bk_status').textContent = `${ok} Standardbetr${ok === 1 ? 'ag' : 'äge'} gespeichert.`;
+  if (failed.length) setErr($('#bk_error'), 'Nicht gespeichert:\n' + failed.join('\n'));
 });
 
 const warnLeave = e => { e.preventDefault(); e.returnValue = ''; };
@@ -1299,6 +1243,9 @@ $('#bk_run').addEventListener('click', async () => {
       } else {
         r.result = {ok: true, pi};
         r.checked = false;
+        if ($('#bk_save').checked && pi.amount !== savedAmount(r.c)){
+          try { await saveStandardAmount(r.c, pi.amount); } catch {}
+        }
         if (!recentByCustomer.has(r.c.id)) recentByCustomer.set(r.c.id, []);
         recentByCustomer.get(r.c.id).unshift(pi);
         ok++;
