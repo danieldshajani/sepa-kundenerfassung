@@ -145,6 +145,26 @@ table.perm th{background:var(--surface-2);font-size:12px}
 ul.checks{list-style:none;padding:0;margin:0 0 8px;display:grid;gap:4px;font-size:14px}
 ul.checks .ok{color:var(--ok)}
 ul.checks .bad{color:var(--err);font-weight:600}
+
+/* Zahlungen und Sammeleinzug */
+.tabs{overflow-x:auto}
+.tabs button{white-space:nowrap}
+.badge.err{background:var(--err-soft);color:var(--err)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.tbl-wrap{border:1px solid var(--border);border-radius:var(--radius);overflow:auto;background:var(--surface);max-height:65vh}
+table.data{border-collapse:collapse;width:100%;font-size:14px}
+table.data th,table.data td{padding:8px 10px;border-top:1px solid var(--border);text-align:left;vertical-align:top}
+table.data thead th{position:sticky;top:0;z-index:1;background:var(--surface-2);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-top:0;white-space:nowrap}
+table.data .num{text-align:right;white-space:nowrap}
+table.data input{padding:5px 8px}
+table.data input[type=checkbox]{width:auto;margin-top:4px}
+table.data input.amt{width:100px;text-align:right}
+table.data input.desc{min-width:170px}
+table.data tr.dup td{background:var(--warn-soft)}
+.sumbar{position:sticky;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 -2px 10px rgba(0,0,0,.08)}
+.sumbar b{font-size:16px}
+textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:13px/1.4 ui-monospace,Consolas,monospace}
+.pre{white-space:pre-line}
 </style>
 </head>
 <body>
@@ -228,11 +248,12 @@ ul.checks .bad{color:var(--err);font-weight:600}
 
         <li>
           <h4>Berechtigungen setzen</h4>
-          <p>Darunter steht eine lange Liste. Genau diese vier Zeilen ändern, alles andere bleibt auf <b>Keine</b>:</p>
+          <p>Darunter steht eine lange Liste. Genau diese fünf Zeilen ändern, alles andere bleibt auf <b>Keine</b>:</p>
           <table class="perm">
             <tr><th>Zeile in Stripe</th><th>Einstellen auf</th></tr>
             <tr><td><b>Customers</b></td><td>Schreiben</td></tr>
             <tr><td><b>Mandates</b></td><td>Lesen</td></tr>
+            <tr><td><b>PaymentIntents</b></td><td>Schreiben</td></tr>
             <tr><td><b>PaymentMethods</b></td><td>Schreiben</td></tr>
             <tr><td><b>SetupIntents</b></td><td>Schreiben</td></tr>
           </table>
@@ -244,6 +265,7 @@ ul.checks .bad{color:var(--err);font-weight:600}
                 <div class="mk-perm dim"><span>Charges</span><span class="mk-seg"><b class="on">Keine</b><b>Lesen</b><b>Schreiben</b></span></div>
                 <div class="mk-perm"><span><b>Customers</b></span><span class="mk-seg hl"><b>Keine</b><b>Lesen</b><b class="on">Schreiben</b></span></div>
                 <div class="mk-perm"><span><b>Mandates</b></span><span class="mk-seg hl"><b>Keine</b><b class="on">Lesen</b><b>Schreiben</b></span></div>
+                <div class="mk-perm"><span><b>PaymentIntents</b></span><span class="mk-seg hl"><b>Keine</b><b>Lesen</b><b class="on">Schreiben</b></span></div>
                 <div class="mk-perm"><span><b>PaymentMethods</b></span><span class="mk-seg hl"><b>Keine</b><b>Lesen</b><b class="on">Schreiben</b></span></div>
                 <div class="mk-perm dim"><span>Refunds</span><span class="mk-seg"><b class="on">Keine</b><b>Lesen</b><b>Schreiben</b></span></div>
                 <div class="mk-perm"><span><b>SetupIntents</b></span><span class="mk-seg hl"><b>Keine</b><b>Lesen</b><b class="on">Schreiben</b></span></div>
@@ -274,7 +296,7 @@ ul.checks .bad{color:var(--err);font-weight:600}
           <h4>Hier einfügen</h4>
           <ul>
             <li>Ganz oben auf dieser Seite in das Feld <b>Stripe-Schlüssel einfügen</b> klicken, mit <b>Strg+V</b> einfügen und auf <b>Prüfen und verbinden</b> klicken.</li>
-            <li>Das Tool prüft, ob alle vier Berechtigungen stimmen, und zeigt an, was eventuell fehlt.</li>
+            <li>Das Tool prüft, ob alle fünf Berechtigungen stimmen, und zeigt an, was eventuell fehlt.</li>
             <li>Fehlt etwas: in Stripe beim Schlüssel rechts auf <b>⋯</b> → <b>Schlüssel bearbeiten</b>, Berechtigung ergänzen, speichern und hier nochmal auf "Prüfen und verbinden" klicken. Der Schlüssel bleibt derselbe.</li>
           </ul>
         </li>
@@ -296,6 +318,8 @@ ul.checks .bad{color:var(--err);font-weight:600}
     <nav class="tabs" role="tablist">
       <button role="tab" aria-selected="true" data-tab="new">Neuer Kunde</button>
       <button role="tab" aria-selected="false" data-tab="list">Kunden</button>
+      <button role="tab" aria-selected="false" data-tab="payments">Zahlungen</button>
+      <button role="tab" aria-selected="false" data-tab="bulk">Sammeleinzug</button>
     </nav>
 
     <!-- Neuer Kunde -->
@@ -349,6 +373,64 @@ ul.checks .bad{color:var(--err);font-weight:600}
       <div class="actions" style="margin-top:12px"><button class="btn hidden" id="moreBtn" type="button">Mehr laden</button></div>
       <p class="hint" style="margin-top:12px">Die Suche greift auf den Stripe-Suchindex zu. Gerade angelegte Kunden erscheinen dort erst nach etwa einer Minute.</p>
     </div>
+
+    <!-- Zahlungen -->
+    <div id="tab-payments" class="hidden">
+      <div class="permWarn alert warn hidden" style="margin-bottom:12px"></div>
+      <div class="actions" style="margin-bottom:12px"><button class="btn" id="payReload" type="button">Aktualisieren</button></div>
+      <div id="payError" class="alert err hidden" style="margin-bottom:12px"></div>
+      <div class="tbl-wrap">
+        <table class="data">
+          <thead><tr><th>Datum</th><th>Kunde</th><th>Verwendungszweck</th><th class="num">Betrag</th><th>Status</th><th></th></tr></thead>
+          <tbody id="payBody"></tbody>
+        </table>
+      </div>
+      <div class="actions" style="margin-top:12px"><button class="btn hidden" id="payMore" type="button">Mehr laden</button></div>
+      <p class="hint" style="margin-top:12px">SEPA-Lastschriften stehen zuerst einige Werktage auf "In Bearbeitung". Erst danach steht fest, ob die Bank das Geld freigibt. Kunden können eine Lastschrift bis zu 8 Wochen lang zurückbuchen lassen.</p>
+    </div>
+
+    <!-- Sammeleinzug -->
+    <div id="tab-bulk" class="hidden stack">
+      <div class="permWarn alert warn hidden"></div>
+      <div class="card stack">
+        <div>
+          <h2>Sammeleinzug</h2>
+          <p class="muted small">Mehrere SEPA-Lastschriften auf einmal auslösen. Angezeigt werden alle Kunden, bei denen eine SEPA-Bankverbindung als Standard-Zahlungsart hinterlegt ist.</p>
+        </div>
+        <div class="grid">
+          <div class="full"><label for="bk_desc">Verwendungszweck <span class="req">*</span></label><input id="bk_desc" placeholder="z.B. Schulgeld November 2026" autocomplete="off"><div class="hint">Gilt für alle Zeilen, in denen kein eigener Verwendungszweck steht. Erscheint in Stripe und in der Benachrichtigung an den Kunden.</div></div>
+          <div><label for="bk_amount">Betrag für alle markierten (€)</label><div class="actions" style="flex-wrap:nowrap"><input id="bk_amount" inputmode="decimal" placeholder="z.B. 150,00" autocomplete="off"><button class="btn" type="button" id="bk_applyAmt">Übernehmen</button></div></div>
+          <div><label for="bk_filter">Liste filtern</label><input id="bk_filter" type="search" placeholder="Name, E-Mail, Kundennummer"></div>
+        </div>
+        <details>
+          <summary style="cursor:pointer;font-weight:600">Beträge aus Excel oder CSV übernehmen</summary>
+          <div class="stack" style="margin-top:10px">
+            <p class="small muted">Eine Zeile pro Zahlung: zuerst <b>Kundennummer</b>, <b>E-Mail</b> oder <b>Stripe-Kunden-ID</b> (cus_...), dann der <b>Betrag</b>, optional ein eigener <b>Verwendungszweck</b>. Spalten in Excel markieren, kopieren und hier einfügen, oder eine CSV-Datei wählen (Trennzeichen Semikolon oder Tab).</p>
+            <textarea id="bk_csv" spellcheck="false" placeholder="Kundennummer;Betrag;Verwendungszweck&#10;10023;150,00&#10;max@example.com;75,50;Schulgeld und Ausflug"></textarea>
+            <div class="actions">
+              <button class="btn" type="button" id="bk_csvApply">Übernehmen</button>
+              <label class="btn">Datei wählen<input type="file" id="bk_file" accept=".csv,.txt,text/csv,text/plain" hidden></label>
+            </div>
+            <div id="bk_csvResult"></div>
+          </div>
+        </details>
+      </div>
+      <div id="bk_error" class="alert err pre hidden"></div>
+      <div class="tbl-wrap">
+        <table class="data">
+          <thead><tr><th><input type="checkbox" id="bk_all" title="Alle markieren"></th><th>Kunde</th><th>Konto</th><th>Eigener Verwendungszweck</th><th class="num">Betrag €</th><th>Ergebnis</th></tr></thead>
+          <tbody id="bk_body"></tbody>
+        </table>
+      </div>
+      <div class="sumbar">
+        <div><b id="bk_sum">0 Zahlungen · 0,00 €</b><div class="hint" id="bk_status"></div></div>
+        <div class="actions">
+          <button class="btn" type="button" id="bk_reload">Neu laden</button>
+          <button class="btn" type="button" id="bk_export" disabled>Ergebnis als CSV</button>
+          <button class="btn primary" type="button" id="bk_run" disabled>Einzug starten</button>
+        </div>
+      </div>
+    </div>
   </section>
 </div>
 
@@ -372,6 +454,26 @@ ul.checks .bad{color:var(--err);font-weight:600}
     <div class="actions">
       <button class="btn primary" type="submit" id="attachBtn">Hinterlegen</button>
       <button class="btn" type="button" id="attachClose">Schließen</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Einzelne Lastschrift -->
+<dialog id="chargeDlg">
+  <form id="chargeForm" class="body stack" novalidate>
+    <div>
+      <h2>Lastschrift einziehen</h2>
+      <p class="muted small" id="chargeFor"></p>
+    </div>
+    <div class="grid">
+      <div><label for="ch_amount">Betrag (€) <span class="req">*</span></label><input id="ch_amount" inputmode="decimal" placeholder="150,00" autocomplete="off"></div>
+      <div class="full"><label for="ch_desc">Verwendungszweck <span class="req">*</span></label><input id="ch_desc" placeholder="z.B. Schulgeld November 2026" autocomplete="off"></div>
+    </div>
+    <div id="chargeError" class="alert err hidden"></div>
+    <div id="chargeResult"></div>
+    <div class="actions">
+      <button class="btn primary" type="submit" id="chargeBtn">Jetzt einziehen</button>
+      <button class="btn" type="button" id="chargeClose">Schließen</button>
     </div>
   </form>
 </dialog>
@@ -428,7 +530,9 @@ async function api(method, path, params = {}){
       body: isGet ? undefined : qs
     });
   } catch (e) {
-    throw new Error('Keine Verbindung zu Stripe. Internetverbindung prüfen.');
+    const err = new Error('Keine Verbindung zu Stripe. Internetverbindung prüfen.');
+    err.network = true;
+    throw err;
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok){
@@ -650,6 +754,11 @@ $('#resetBtn').addEventListener('click', () => resetForm(true));
 // ---------- Kundenliste ----------
 let listState = {query: '', cursor: null, page: null, hasMore: false, items: []};
 
+function sepaPm(c){
+  const pm = c.invoice_settings?.default_payment_method;
+  return pm && typeof pm === 'object' && pm.type === 'sepa_debit' ? pm : null;
+}
+
 function sepaLabel(c){
   const pm = c.invoice_settings?.default_payment_method;
   if (pm && typeof pm === 'object' && pm.type === 'sepa_debit') return `<span class="badge live">SEPA ${esc(pm.sepa_debit.country)} •••• ${esc(pm.sepa_debit.last4)}</span>`;
@@ -666,6 +775,7 @@ function renderList(){
       <div class="sub" style="font-size:14px;color:var(--text)">${esc(c.email || '')}</div>
       <div>${sepaLabel(c)}</div>
       <div class="acts">
+        ${sepaPm(c) ? `<button class="btn small primary" type="button" data-charge="${i}">Einziehen</button>` : ''}
         <button class="btn small" type="button" data-attach="${i}">SEPA hinterlegen</button>
         <a class="btn small" href="${dashUrl('customers', c.id)}" target="_blank" rel="noopener noreferrer">Dashboard</a>
       </div>
@@ -755,12 +865,490 @@ $('#attachForm').addEventListener('submit', async e => {
   }
 });
 
+// ---------- Lastschrift einziehen ----------
+const fmtMoney = (cents, cur = 'eur') => new Intl.NumberFormat('de-DE', {style: 'currency', currency: cur.toUpperCase()}).format(cents / 100);
+const fmtEur = cents => fmtMoney(cents, 'eur');
+const fmtDate = ts => new Date(ts * 1000).toLocaleDateString('de-DE');
+
+// "1.250,50" / "1250.5" / "150" → Cent. null = leer, NaN = ungültig.
+function parseAmount(s){
+  let t = String(s ?? '').replace(/[\s€]/g, '');
+  if (!t) return null;
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return NaN;
+  return Math.round(Number(t) * 100);
+}
+const validAmount = a => Number.isFinite(a) && a >= 50;
+const fmtAmountInput = cents => (cents / 100).toFixed(2).replace('.', ',');
+
+const PI_STATUS = {
+  processing: ['In Bearbeitung', 'warn'],
+  succeeded: ['Erfolgreich', 'live'],
+  requires_payment_method: ['Fehlgeschlagen', 'err'],
+  canceled: ['Storniert', ''],
+  requires_action: ['Unvollständig', 'warn'],
+  requires_confirmation: ['Unvollständig', 'warn'],
+  requires_capture: ['Autorisiert', 'warn'],
+};
+function piBadge(pi){
+  const [text, cls] = PI_STATUS[pi.status] || [pi.status, ''];
+  return `<span class="badge ${cls}">${esc(text)}</span>`;
+}
+
+async function chargeSepa({customerId, pmId, amount, description, batch}){
+  const params = {
+    amount, currency: 'eur', customer: customerId, payment_method: pmId,
+    confirm: true, off_session: true,
+    automatic_payment_methods: {enabled: true, allow_redirects: 'never'},
+    description,
+    metadata: {quelle: 'SEPA Kundenerfassung', sammeleinzug: batch}
+  };
+  try {
+    return await api('POST', '/v1/payment_intents', params);
+  } catch (e){
+    // Bankverbindungen, die ohne Mandat in Stripe gespeichert wurden (z.B. aus anderen Systemen):
+    // das Papier-Mandat nachträglich hinterlegen und einmal neu versuchen. Widerrufene Mandate nie.
+    const msg = e.stripe?.message || '';
+    if (e.status !== 400 || !/mandate/i.test(msg) || /(revok|inactive|cancel)/i.test(msg)) throw e;
+    const si = await api('POST', '/v1/setup_intents', {
+      customer: customerId, payment_method: pmId, confirm: true, usage: 'off_session',
+      automatic_payment_methods: {enabled: true, allow_redirects: 'never'},
+      mandate_data: {customer_acceptance: {type: 'offline'}},
+      metadata: {quelle: 'Papierformular (nachgetragen beim Einzug)'}
+    });
+    if (si.status !== 'succeeded' || !si.mandate) throw e;
+    return await api('POST', '/v1/payment_intents', {...params, mandate: si.mandate});
+  }
+}
+
+const UNCLEAR_MSG = 'Verbindung unterbrochen. Bitte im Tab "Zahlungen" prüfen, ob die Zahlung angelegt wurde, bevor du es nochmal versuchst.';
+
+let payPermOk = null;
+async function checkPayPerm(){
+  if (payPermOk === null){
+    try { await api('POST', '/v1/payment_intents/pi_berechtigungstest'); payPermOk = true; }
+    catch (e){ payPermOk = e.status !== 403; }
+  }
+  document.querySelectorAll('.permWarn').forEach(w => {
+    w.innerHTML = 'Dem Stripe-Schlüssel fehlt die Berechtigung <b>PaymentIntents: Schreiben</b>. In Stripe unter Entwickler → API-Schlüssel beim Schlüssel "SEPA Kundenerfassung" auf <b>⋯</b> → <b>Schlüssel bearbeiten</b>, PaymentIntents auf "Schreiben" stellen, speichern und diese Seite neu laden.';
+    show(w, !payPermOk);
+  });
+  return payPermOk;
+}
+
+// Einzelne Lastschrift aus der Kundenliste
+let chargeCustomer = null;
+const chargeDlg = $('#chargeDlg');
+
+$('#custList').addEventListener('click', e => {
+  const b = e.target.closest('[data-charge]');
+  if (!b) return;
+  chargeCustomer = listState.items[Number(b.dataset.charge)];
+  const pm = sepaPm(chargeCustomer);
+  $('#chargeForm').reset();
+  $('#chargeFor').textContent = `${chargeCustomer.name || chargeCustomer.email || chargeCustomer.id} · SEPA ${pm.sepa_debit.country} •••• ${pm.sepa_debit.last4}`;
+  setErr($('#chargeError'), '');
+  $('#chargeResult').innerHTML = '';
+  show($('#chargeBtn'), true);
+  chargeDlg.showModal();
+  $('#ch_amount').focus();
+});
+$('#chargeClose').addEventListener('click', () => chargeDlg.close());
+
+$('#chargeForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = $('#chargeError'), btn = $('#chargeBtn');
+  setErr(err, '');
+  const amount = parseAmount($('#ch_amount').value);
+  const description = $('#ch_desc').value.trim();
+  if (!Number.isFinite(amount)) return setErr(err, 'Bitte einen gültigen Betrag eingeben, z.B. 150,00.');
+  if (amount < 50) return setErr(err, 'Der Mindestbetrag bei Stripe ist 0,50 €.');
+  if (!description) return setErr(err, 'Bitte einen Verwendungszweck eingeben.');
+  const c = chargeCustomer;
+  if (!confirm(`${fmtEur(amount)} per SEPA-Lastschrift von ${c.name || c.email || c.id} einziehen?\n\nVerwendungszweck: ${description}`)) return;
+  busy(btn, true, 'Wird eingezogen');
+  try {
+    const pi = await chargeSepa({customerId: c.id, pmId: sepaPm(c).id, amount, description, batch: 'einzeln'});
+    const failed = pi.status === 'requires_payment_method';
+    $('#chargeResult').innerHTML = `<div class="alert ${failed ? 'err' : 'ok'}">
+      ${failed ? `<b>Lastschrift abgelehnt.</b> ${esc(pi.last_payment_error?.message || '')}` : `<b>Lastschrift über ${fmtEur(amount)} ausgelöst.</b> Status: ${esc(PI_STATUS[pi.status]?.[0] || pi.status)}. Das Geld ist nach einigen Werktagen da.`}
+      <div style="margin-top:8px"><a href="${dashUrl('payments', pi.id)}" target="_blank" rel="noopener noreferrer">In Stripe ansehen</a></div></div>`;
+    show(btn, false);
+    payState.loaded = false;
+  } catch (ex){
+    setErr(err, ex.network ? UNCLEAR_MSG : ex.message);
+  } finally {
+    busy(btn, false);
+  }
+});
+
+// ---------- Zahlungen ----------
+let payState = {cursor: null, items: [], loaded: false};
+
+async function loadPayments(append){
+  const err = $('#payError');
+  setErr(err, '');
+  if (!append){
+    payState = {cursor: null, items: [], loaded: true};
+    $('#payBody').innerHTML = '<tr><td colspan="6"><span class="spin"></span></td></tr>';
+  }
+  try {
+    const res = await api('GET', '/v1/payment_intents', {limit: 50, starting_after: payState.cursor, expand: ['data.customer']});
+    payState.items = payState.items.concat(res.data);
+    payState.cursor = res.data.length ? res.data[res.data.length - 1].id : null;
+    show($('#payMore'), res.has_more);
+    renderPayments();
+  } catch (ex){
+    setErr(err, ex.message);
+    if (!append) $('#payBody').innerHTML = '';
+  }
+}
+
+function renderPayments(){
+  $('#payBody').innerHTML = payState.items.length ? payState.items.map(pi => {
+    const c = pi.customer && typeof pi.customer === 'object' ? pi.customer : null;
+    const fail = pi.status === 'requires_payment_method' ? pi.last_payment_error?.message : '';
+    return `<tr>
+      <td style="white-space:nowrap">${fmtDate(pi.created)}</td>
+      <td>${esc(c ? (c.name || c.email || c.id) : (pi.customer || ''))}</td>
+      <td>${esc(pi.description || '')}${fail ? `<div class="hint bad">${esc(fail)}</div>` : ''}</td>
+      <td class="num">${fmtMoney(pi.amount, pi.currency)}</td>
+      <td>${piBadge(pi)}</td>
+      <td><a class="btn small" href="${dashUrl('payments', pi.id)}" target="_blank" rel="noopener noreferrer">Details</a></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="6" class="muted">Noch keine Zahlungen.</td></tr>';
+}
+
+$('#payReload').addEventListener('click', () => loadPayments(false));
+$('#payMore').addEventListener('click', () => loadPayments(true));
+
+// ---------- Sammeleinzug ----------
+let bulk = {rows: [], loaded: false, running: false, batch: null};
+let recentByCustomer = new Map();
+
+async function loadBulkCustomers(){
+  const body = $('#bk_body');
+  setErr($('#bk_error'), '');
+  body.innerHTML = '<tr><td colspan="6"><span class="spin"></span> Kunden werden geladen...</td></tr>';
+  try {
+    const all = [];
+    let after = null;
+    do {
+      const res = await api('GET', '/v1/customers', {limit: 100, starting_after: after, expand: ['data.invoice_settings.default_payment_method']});
+      all.push(...res.data);
+      after = res.has_more ? res.data[res.data.length - 1].id : null;
+      $('#bk_status').textContent = `${all.length} Kunden geladen...`;
+    } while (after);
+    bulk.rows = all.filter(sepaPm)
+      .map(c => ({c, pm: sepaPm(c), checked: false, amountText: '', desc: '', result: null}))
+      .sort((a, b) => (a.c.name || '').localeCompare(b.c.name || '', 'de'));
+    bulk.loaded = true;
+    await loadRecentPayments();
+    $('#bk_status').textContent = `${bulk.rows.length} von ${all.length} Kunden haben eine SEPA-Bankverbindung.`;
+    $('#bk_export').disabled = true;
+    renderBulk();
+  } catch (ex){
+    setErr($('#bk_error'), ex.message);
+    body.innerHTML = '';
+  }
+}
+
+// Zahlungen der letzten 45 Tage, um doppelte Einzüge sichtbar zu machen
+async function loadRecentPayments(){
+  recentByCustomer = new Map();
+  const since = Math.floor(Date.now() / 1000) - 45 * 86400;
+  let after = null, pages = 0;
+  do {
+    const res = await api('GET', '/v1/payment_intents', {limit: 100, starting_after: after, created: {gte: since}});
+    for (const pi of res.data){
+      if (!pi.customer || pi.status === 'canceled' || pi.status === 'requires_payment_method') continue;
+      const id = typeof pi.customer === 'string' ? pi.customer : pi.customer.id;
+      if (!recentByCustomer.has(id)) recentByCustomer.set(id, []);
+      recentByCustomer.get(id).push(pi);
+    }
+    after = res.has_more ? res.data[res.data.length - 1].id : null;
+  } while (after && ++pages < 20);
+}
+
+const generalDesc = () => $('#bk_desc').value.trim();
+const rowDesc = r => r.desc.trim() || generalDesc();
+
+function dupOf(r){
+  const d = rowDesc(r).toLowerCase();
+  if (!d) return null;
+  return (recentByCustomer.get(r.c.id) || []).find(pi => (pi.description || '').trim().toLowerCase() === d) || null;
+}
+
+function bulkVisible(){
+  const q = $('#bk_filter').value.trim().toLowerCase();
+  return bulk.rows.filter(r => !q || [r.c.name, r.c.email, r.c.metadata?.kundennummer].some(v => (v || '').toLowerCase().includes(q)));
+}
+
+function bulkResultCell(r){
+  if (!r.result) return '';
+  if (r.result.running) return '<span class="spin"></span>';
+  if (r.result.pi && r.result.ok) return `${piBadge(r.result.pi)} <a class="small" href="${dashUrl('payments', r.result.pi.id)}" target="_blank" rel="noopener noreferrer">ansehen</a>`;
+  return `<span class="badge err">${r.result.unclear ? 'Unklar' : 'Fehler'}</span><div class="hint bad">${esc(r.result.text)}</div>`;
+}
+
+function renderBulk(){
+  const rows = bulkVisible();
+  const lock = bulk.running ? 'disabled' : '';
+  $('#bk_body').innerHTML = rows.length ? rows.map(r => {
+    const i = bulk.rows.indexOf(r);
+    const done = !!r.result?.ok;
+    const last = (recentByCustomer.get(r.c.id) || [])[0];
+    const dup = !done && dupOf(r);
+    const sub = [r.c.metadata?.kundennummer && 'Nr. ' + r.c.metadata.kundennummer, r.c.email].filter(Boolean).join(' · ');
+    return `<tr data-i="${i}" class="${dup ? 'dup' : ''}">
+      <td><input type="checkbox" data-k="checked" ${r.checked ? 'checked' : ''} ${done ? 'disabled' : lock}></td>
+      <td><div style="font-weight:600">${esc(r.c.name || '(ohne Name)')}</div>
+        ${sub ? `<div class="hint">${esc(sub)}</div>` : ''}
+        ${last ? `<div class="hint">Zuletzt: ${fmtDate(last.created)}, ${fmtMoney(last.amount, last.currency)}${last.description ? ', ' + esc(last.description) : ''}</div>` : ''}
+        ${dup ? `<div class="hint bad">Mit diesem Verwendungszweck am ${fmtDate(dup.created)} schon eingezogen.</div>` : ''}</td>
+      <td style="white-space:nowrap">${esc(r.pm.sepa_debit.country)} •••• ${esc(r.pm.sepa_debit.last4)}</td>
+      <td><input class="desc" data-k="desc" value="${esc(r.desc)}" placeholder="${esc(generalDesc() || 'wie oben')}" ${done ? 'disabled' : lock}></td>
+      <td class="num"><input class="amt" data-k="amountText" inputmode="decimal" value="${esc(r.amountText)}" ${done ? 'disabled' : lock}></td>
+      <td data-result>${bulkResultCell(r)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" class="muted">${bulk.rows.length ? 'Keine Treffer für den Filter.' : 'Keine Kunden mit SEPA-Bankverbindung gefunden.'}</td></tr>`;
+  updateBulkSum();
+}
+
+function updateRowResult(r){
+  const cell = $(`#bk_body tr[data-i="${bulk.rows.indexOf(r)}"] [data-result]`);
+  if (cell) cell.innerHTML = bulkResultCell(r);
+}
+
+const selectedRows = () => bulk.rows.filter(r => r.checked && !r.result?.ok);
+
+function updateBulkSum(){
+  const sel = selectedRows();
+  let sum = 0, bad = 0;
+  for (const r of sel){
+    const a = parseAmount(r.amountText);
+    if (validAmount(a)) sum += a; else bad++;
+  }
+  $('#bk_sum').textContent = `${sel.length} Zahlung${sel.length === 1 ? '' : 'en'} · ${fmtEur(sum)}` + (bad ? ` · ${bad} ohne gültigen Betrag` : '');
+  $('#bk_run').disabled = bulk.running || !sel.length;
+  const vis = bulkVisible().filter(r => !r.result?.ok);
+  $('#bk_all').checked = vis.length > 0 && vis.every(r => r.checked);
+}
+
+function onBulkInput(e){
+  const tr = e.target.closest('tr[data-i]');
+  const k = e.target.dataset.k;
+  if (!tr || !k) return;
+  const r = bulk.rows[Number(tr.dataset.i)];
+  if (k === 'checked') r.checked = e.target.checked;
+  else {
+    r[k] = e.target.value;
+    // Wer einen Betrag einträgt, will die Zeile auch einziehen
+    if (k === 'amountText' && e.target.value.trim() && !r.checked){
+      r.checked = true;
+      tr.querySelector('[data-k="checked"]').checked = true;
+    }
+  }
+  updateBulkSum();
+}
+$('#bk_body').addEventListener('input', onBulkInput);
+$('#bk_body').addEventListener('change', onBulkInput);
+
+$('#bk_all').addEventListener('change', e => {
+  bulkVisible().filter(r => !r.result?.ok).forEach(r => r.checked = e.target.checked);
+  renderBulk();
+});
+$('#bk_filter').addEventListener('input', renderBulk);
+$('#bk_desc').addEventListener('change', renderBulk);
+$('#bk_reload').addEventListener('click', loadBulkCustomers);
+
+$('#bk_applyAmt').addEventListener('click', () => {
+  const a = parseAmount($('#bk_amount').value);
+  setErr($('#bk_error'), '');
+  if (!validAmount(a)) return setErr($('#bk_error'), 'Bitte einen gültigen Betrag eingeben (mindestens 0,50 €), z.B. 150,00.');
+  const sel = selectedRows();
+  if (!sel.length) return setErr($('#bk_error'), 'Bitte zuerst Kunden markieren (Häkchen links, oder oben in der Kopfzeile alle markieren).');
+  sel.forEach(r => r.amountText = fmtAmountInput(a));
+  renderBulk();
+});
+
+// CSV / Excel
+function parseCsv(text){
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  if (!lines.length) return [];
+  const delim = ['\t', ';', ','].map(d => [d, lines[0].split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  return lines.map(line => {
+    const out = [];
+    let cur = '', q = false;
+    for (let i = 0; i < line.length; i++){
+      const ch = line[i];
+      if (q){
+        if (ch === '"' && line[i + 1] === '"'){ cur += '"'; i++; }
+        else if (ch === '"') q = false;
+        else cur += ch;
+      }
+      else if (ch === '"') q = true;
+      else if (ch === delim){ out.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  });
+}
+
+function findBulkRows(ident){
+  const s = ident.trim(), low = s.toLowerCase();
+  if (/^cus_/.test(s)) return bulk.rows.filter(r => r.c.id === s);
+  if (s.includes('@')) return bulk.rows.filter(r => (r.c.email || '').toLowerCase() === low);
+  const byRef = bulk.rows.filter(r => (r.c.metadata?.kundennummer || '').trim().toLowerCase() === low);
+  return byRef.length ? byRef : bulk.rows.filter(r => (r.c.name || '').trim().toLowerCase() === low);
+}
+
+function applyCsv(text){
+  const out = $('#bk_csvResult');
+  if (!bulk.loaded){ out.innerHTML = '<div class="alert warn">Die Kundenliste wird noch geladen. Bitte kurz warten.</div>'; return; }
+  const rows = parseCsv(text);
+  if (!rows.length){ out.innerHTML = ''; return; }
+  let idI = 0, amI = 1, deI = 2, start = 0;
+  if (!Number.isFinite(parseAmount(rows[0][1]))){
+    // Kopfzeile: Spalten anhand der Überschriften finden
+    const h = rows[0].map(x => x.toLowerCase());
+    const find = re => h.findIndex(x => re.test(x));
+    amI = find(/betrag|amount|summe|eur/); if (amI < 0) amI = 1;
+    deI = find(/zweck|beschreibung|description|text/);
+    idI = find(/kund|nummer|nr|mail|id|customer/); if (idI < 0) idI = 0;
+    start = 1;
+  }
+  const res = {ok: 0, missing: [], ambiguous: [], badAmount: []};
+  for (const row of rows.slice(start)){
+    const ident = (row[idI] || '').trim();
+    if (!ident) continue;
+    const amount = parseAmount(row[amI]);
+    const matches = findBulkRows(ident);
+    if (!matches.length){ res.missing.push(ident); continue; }
+    if (matches.length > 1){ res.ambiguous.push(ident); continue; }
+    if (!validAmount(amount)){ res.badAmount.push(`${ident} (${row[amI] || 'leer'})`); continue; }
+    const r = matches[0];
+    if (r.result?.ok) continue;
+    r.checked = true;
+    r.amountText = fmtAmountInput(amount);
+    if (deI >= 0 && row[deI]) r.desc = row[deI];
+    res.ok++;
+  }
+  const probs = [
+    res.missing.length && `Nicht gefunden (keine SEPA-Bankverbindung oder falsche Angabe): ${res.missing.join(', ')}`,
+    res.ambiguous.length && `Mehrdeutig, mehrere Kunden passen: ${res.ambiguous.join(', ')}`,
+    res.badAmount.length && `Ungültiger Betrag: ${res.badAmount.join(', ')}`,
+  ].filter(Boolean);
+  out.innerHTML = `<div class="alert ${probs.length ? 'warn' : 'ok'} pre"><b>${res.ok} Zeile${res.ok === 1 ? '' : 'n'} übernommen und markiert.</b>${probs.length ? '\n' + esc(probs.join('\n')) : ''}</div>`;
+  renderBulk();
+}
+
+$('#bk_csvApply').addEventListener('click', () => applyCsv($('#bk_csv').value));
+$('#bk_file').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const buf = await f.arrayBuffer();
+  let text = new TextDecoder('utf-8').decode(buf);
+  // Excel speichert CSV unter Windows oft nicht als UTF-8
+  if (text.includes('�')) text = new TextDecoder('windows-1252').decode(buf);
+  $('#bk_csv').value = text;
+  e.target.value = '';
+  applyCsv(text);
+});
+
+const warnLeave = e => { e.preventDefault(); e.returnValue = ''; };
+
+$('#bk_run').addEventListener('click', async () => {
+  setErr($('#bk_error'), '');
+  const sel = selectedRows();
+  const problems = [];
+  for (const r of sel){
+    if (!validAmount(parseAmount(r.amountText))) problems.push(`${r.c.name || r.c.id}: kein gültiger Betrag (mindestens 0,50 €)`);
+    if (!rowDesc(r)) problems.push(`${r.c.name || r.c.id}: kein Verwendungszweck`);
+  }
+  if (problems.length){
+    return setErr($('#bk_error'), 'Bitte zuerst korrigieren:\n' + problems.slice(0, 10).join('\n') + (problems.length > 10 ? `\n... und ${problems.length - 10} weitere` : ''));
+  }
+  if (!await checkPayPerm()) return;
+
+  const total = sel.reduce((s, r) => s + parseAmount(r.amountText), 0);
+  const dups = sel.filter(dupOf);
+  let msg = `${sel.length} SEPA-Lastschrift${sel.length === 1 ? '' : 'en'} über insgesamt ${fmtEur(total)} jetzt einziehen?\n\n`
+    + (IS_TEST ? '(Testmodus, es fließt kein echtes Geld.)' : 'Das löst echte Abbuchungen von den Konten der Kunden aus.');
+  if (dups.length) msg += `\n\nACHTUNG: Bei ${dups.length} Kunde${dups.length === 1 ? '' : 'n'} wurde derselbe Verwendungszweck in den letzten Wochen schon eingezogen (gelb markiert). Diese würden ebenfalls nochmal belastet.`;
+  if (!confirm(msg)) return;
+
+  bulk.running = true;
+  bulk.batch = 'SE-' + new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  window.addEventListener('beforeunload', warnLeave);
+  $('#bk_export').disabled = true;
+  renderBulk();
+
+  let ok = 0, fail = 0, n = 0;
+  for (const r of sel){
+    n++;
+    $('#bk_status').textContent = `Läuft: ${n} von ${sel.length}. Bitte die Seite nicht schließen.`;
+    r.result = {running: true};
+    updateRowResult(r);
+    try {
+      const pi = await chargeSepa({customerId: r.c.id, pmId: r.pm.id, amount: parseAmount(r.amountText), description: rowDesc(r), batch: bulk.batch});
+      if (pi.status === 'requires_payment_method'){
+        r.result = {ok: false, pi, text: pi.last_payment_error?.message || 'Von der Bank abgelehnt.'};
+        fail++;
+      } else {
+        r.result = {ok: true, pi};
+        r.checked = false;
+        if (!recentByCustomer.has(r.c.id)) recentByCustomer.set(r.c.id, []);
+        recentByCustomer.get(r.c.id).unshift(pi);
+        ok++;
+      }
+    } catch (e){
+      // Bei Verbindungsabbruch ist unklar, ob Stripe die Zahlung angelegt hat: nicht automatisch erneut markieren
+      r.result = {ok: false, unclear: !!e.network, text: e.network ? UNCLEAR_MSG : e.message};
+      if (e.network) r.checked = false;
+      fail++;
+    }
+    updateRowResult(r);
+  }
+
+  bulk.running = false;
+  window.removeEventListener('beforeunload', warnLeave);
+  $('#bk_status').textContent = `Fertig: ${ok} ausgelöst, ${fail} fehlgeschlagen. Sammel-ID in Stripe (Metadaten "sammeleinzug"): ${bulk.batch}`;
+  $('#bk_export').disabled = false;
+  payState.loaded = false;
+  renderBulk();
+});
+
+$('#bk_export').addEventListener('click', () => {
+  const lines = [['Name', 'E-Mail', 'Kundennummer', 'Betrag', 'Verwendungszweck', 'Ergebnis', 'Stripe-Zahlung', 'Fehler']];
+  for (const r of bulk.rows.filter(r => r.result && !r.result.running)){
+    lines.push([
+      r.c.name || '', r.c.email || '', r.c.metadata?.kundennummer || '', r.amountText, rowDesc(r),
+      r.result.ok ? (PI_STATUS[r.result.pi.status]?.[0] || r.result.pi.status) : (r.result.unclear ? 'Unklar' : 'Fehler'),
+      r.result.pi?.id || '', r.result.text || ''
+    ]);
+  }
+  const cell = v => /[;"\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+  const csv = '﻿' + lines.map(l => l.map(cell).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
+  a.download = `sammeleinzug-${bulk.batch || 'export'}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
 // ---------- Tabs ----------
+const TABS = {new: '#tab-new', list: '#tab-list', payments: '#tab-payments', bulk: '#tab-bulk'};
 document.querySelectorAll('.tabs button').forEach(t => t.addEventListener('click', () => {
+  const tab = t.dataset.tab;
   document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === t)));
-  show($('#tab-new'), t.dataset.tab === 'new');
-  show($('#tab-list'), t.dataset.tab === 'list');
-  if (t.dataset.tab === 'list' && !listState.items.length) loadCustomers(false);
+  for (const [k, sel] of Object.entries(TABS)) show($(sel), k === tab);
+  if (tab === 'list' && !listState.items.length) loadCustomers(false);
+  if (tab === 'payments'){ checkPayPerm(); if (!payState.loaded) loadPayments(false); }
+  if (tab === 'bulk'){ checkPayPerm(); if (!bulk.loaded) loadBulkCustomers(); }
 }));
 
 // ---------- Anleitung: echte Screenshots statt Skizze, falls vorhanden ----------
@@ -782,6 +1370,7 @@ document.querySelectorAll('figure[data-shot]').forEach(fig => {
 const PERM_CHECKS = [
   {label: 'Customers: Schreiben', method: 'POST', path: '/v1/customers/cus_berechtigungstest'},
   {label: 'Mandates: Lesen', method: 'GET', path: '/v1/mandates/mandate_berechtigungstest'},
+  {label: 'PaymentIntents: Schreiben', method: 'POST', path: '/v1/payment_intents/pi_berechtigungstest'},
   {label: 'PaymentMethods: Schreiben', method: 'POST', path: '/v1/payment_methods/pm_berechtigungstest'},
   {label: 'SetupIntents: Schreiben', method: 'POST', path: '/v1/setup_intents/seti_berechtigungstest'},
 ];
@@ -849,7 +1438,15 @@ $('#loginForm').addEventListener('submit', async e => {
 });
 
 $('#logoutBtn').addEventListener('click', () => {
+  if (bulk.running && !confirm('Der Sammeleinzug läuft noch. Trotzdem abmelden?')) return;
   clearKey(); KEY = null;
+  payPermOk = null;
+  payState = {cursor: null, items: [], loaded: false};
+  bulk = {rows: [], loaded: false, running: false, batch: null};
+  recentByCustomer = new Map();
+  if (chargeDlg.open) chargeDlg.close();
+  if (dlg.open) dlg.close();
+  document.querySelector('.tabs button[data-tab="new"]').click();
   resetForm(true);
   listState = {query: '', cursor: null, page: null, hasMore: false, items: []};
   $('#custList').innerHTML = '';
